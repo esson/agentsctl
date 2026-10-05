@@ -1,0 +1,32 @@
+{
+  "name": "agentsctl",
+  "version": "0.1.0",
+  "description": "Report subscription usage limits for Codex, Claude, Copilot and Cursor in one place.",
+  "type": "module",
+  "private": true,
+  "bin": {
+    "agentsctl": "dist/agentsctl.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/agentsctl.js",
+    "dev": "tsx agentsctl.ts",
+    "test": "tsx --test \"test/**/*.test.ts\""
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "better-sqlite3": "^13.0.3"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^9.6.0",
+    "@types/node": "^26.6.2",
+    "tsx": "^4.23.15",
+    "typescript": "^7.0.2"
+  },
+  "files": [
+    "dist/agentsctl.js",
+    "dist/src/**/*.js"
+  ]
+}

@@ -1,0 +1,8 @@
+node_modules/
+dist/
+*.local.json
+tmp/
+.scratch/
+*.token
+*.raw.json
+*.raw.txt

@@ -1,0 +1,49 @@
+{
+  "user_id": "<REDACTED>",
+  "account_id": "<REDACTED>",
+  "email": "<REDACTED>",
+  "plan_type": "team",
+  "rate_limit": {
+    "allowed": true,
+    "limit_reached": false,
+    "primary_window": {
+      "used_percent": 75,
+      "limit_window_seconds": 18000,
+      "reset_after_seconds": 8077,
+      "reset_at": 1790175592
+    },
+    "secondary_window": {
+      "used_percent": 12,
+      "limit_window_seconds": 604800,
+      "reset_after_seconds": 543136,
+      "reset_at": 1790710652
+    }
+  },
+  "code_review_rate_limit": null,
+  "additional_rate_limits": null,
+  "model_usage": {
+    "gpt-6-astra": {
+      "available": true,
+      "available_at": null,
+      "credits_would_enable": false
+    }
+  },
+  "credits": {
+    "has_credits": false,
+    "unlimited": false,
+    "overage_limit_reached": false,
+    "balance": null,
+    "approx_local_messages": null,
+    "approx_cloud_messages": null
+  },
+  "spend_control": {
+    "reached": false,
+    "individual_limit": null
+  },
+  "rate_limit_reached_type": null,
+  "promo": null,
+  "rate_limit_reset_credits": {
+    "available_count": 3,
+    "applicable_available_count": 0
+  }
+}
