@@ -24,11 +24,12 @@ test.beforeEach(() => {
 
 test("no subcommand, --help and -h: command list on stdout, exit 0, nothing runs", async () => {
   for (const argv of [[], ["--help"], ["-h"]]) {
-    const r = await run(argv, providers(), now);
+    const r = await run(argv, { providers: providers(), sessionSources: [], now });
     assert.equal(r.exitCode, 0, argv.join(" "));
     assert.equal(r.stderr, "");
     assert.match(r.stdout, /Usage: agentsctl <command> \[options\]/);
-    assert.match(r.stdout, /^ {2}usage {3}\S/m);
+    assert.match(r.stdout, /^ {2}usage +\S/m);
+    assert.match(r.stdout, /^ {2}sessions +\S/m);
   }
   assert.equal(calls, 0);
 });
@@ -40,7 +41,7 @@ test("unknown subcommand or leading option: exit 2 with help on stderr, nothing 
     [["--json"], "agentsctl: unknown option '--json'"],
     [["--json", "usage"], "agentsctl: unknown option '--json'"],
   ] as const) {
-    const r = await run([...argv], providers(), now);
+    const r = await run([...argv], { providers: providers(), sessionSources: [], now });
     assert.equal(r.exitCode, 2, argv.join(" "));
     assert.equal(r.stdout, "");
     assert.ok(r.stderr.startsWith(`${message}\n`), r.stderr);
@@ -50,14 +51,14 @@ test("unknown subcommand or leading option: exit 2 with help on stderr, nothing 
 });
 
 test("usage: runs the usage command with the remaining arguments", async () => {
-  const r = await run(["usage", "--json"], providers(), now);
+  const r = await run(["usage", "--json"], { providers: providers(), sessionSources: [], now });
   assert.equal(r.exitCode, 0);
   assert.deepEqual(JSON.parse(r.stdout), [{ provider: "Codex", ok: true, windows: [] }]);
   assert.equal(calls, 1);
 });
 
 test("usage --help: the usage command's own help", async () => {
-  const r = await run(["usage", "--help"], providers(), now);
+  const r = await run(["usage", "--help"], { providers: providers(), sessionSources: [], now });
   assert.equal(r.exitCode, 0);
   assert.match(r.stdout, /Usage: agentsctl usage \[options\]/);
   assert.equal(calls, 0);

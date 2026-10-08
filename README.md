@@ -7,6 +7,31 @@ Cursor). It is built from subcommands; a subcommand is always required, and
 | Command | What it does |
 |---|---|
 | `agentsctl usage` | Shows how much of your subscription usage limits you have used, for all four tools in one report. |
+| `agentsctl sessions` | Lists the saved sessions for the current folder, newest first, with the command to resume each. |
+
+## `agentsctl sessions`
+
+Reads each agent's local session store (read-only) and lists the sessions started in exactly the
+current folder, merged across agents and sorted by last use:
+
+```
+Sessions in C:\dev\code\personal\agentsctl
+
+Claude   Agentsctl subcommand CLI from usagectl   2 hours ago
+         claude --resume 79f8ccaa-3abb-4f44-9b47-6140b0c0420c
+```
+
+| Option | What it does |
+|---|---|
+| `--all` | Sessions from every folder; the resume line then starts with `cd "<folder>";`. Shows the 20 newest unless `--limit` is given. |
+| `--provider <names>` | Only these agents (same format as for `usage`). |
+| `--limit <n>` | At most `n` sessions. |
+| `--json` | `{ sessions, errors }`, each session with `provider`, `id`, `title`, `cwd`, `startedAt`, `lastUsedAt`, `resumeCommand` and, when known, `branch` and `model`. |
+| `--no-color` | Plain text. |
+
+Supported so far: Claude Code. An agent that is not installed is skipped; one whose store
+cannot be read shows `could not read: <reason>`. Details of each store are in
+`docs/providers/*-sessions.md`.
 
 ## `agentsctl usage`
 

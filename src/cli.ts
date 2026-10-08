@@ -1,17 +1,29 @@
 import type { Provider } from "./providers/types.js";
 import { EXIT_OK, EXIT_USAGE, type RunResult } from "./result.js";
 import { NO_TERMINAL, type Terminal } from "./terminal.js";
+import type { SessionSource } from "./sessions/types.js";
+import { runSessions } from "./sessions/cli.js";
 import { runUsage } from "./usage/cli.js";
 
-// CLI logic without process I/O: argv + providers + clock in, text + exit code out.
-// agentsctl.ts wires in the real providers; tests inject fakes.
+// CLI logic without process I/O: argv + dependencies in, text + exit code out.
+// agentsctl.ts wires in the real providers, clock and folder; tests inject fakes.
 
 export { EXIT_OK, EXIT_USAGE, type RunResult } from "./result.js";
 export type { Terminal } from "./terminal.js";
 
-/** Everything a subcommand may need, injected by `run`. */
-interface Context {
+/** What the subcommands read from the outside world, injected so tests can fake it. */
+export interface Deps {
+  /** Usage providers, for `usage`. */
   providers: Provider[];
+  /** Session sources, for `sessions`. */
+  sessionSources: SessionSource[];
+  now?: () => Date;
+  /** Current folder, for `sessions`. */
+  cwd?: string;
+}
+
+interface Context {
+  deps: Deps;
   now: () => Date;
   term: Terminal;
 }
@@ -24,7 +36,12 @@ interface Command {
 const COMMANDS: Record<string, Command> = {
   usage: {
     summary: "Show subscription usage limits for Codex, Claude, Copilot and Cursor",
-    run: (argv, ctx) => runUsage(argv, ctx.providers, ctx.now, ctx.term),
+    run: (argv, ctx) => runUsage(argv, ctx.deps.providers, ctx.now, ctx.term),
+  },
+  sessions: {
+    summary: "List saved agent sessions for this folder, with the command to resume each",
+    run: (argv, ctx) =>
+      runSessions(argv, ctx.deps.sessionSources, { now: ctx.now, cwd: ctx.deps.cwd ?? process.cwd(), term: ctx.term }),
   },
 };
 
@@ -47,12 +64,7 @@ Run "agentsctl <command> --help" for the options of a command.
 `;
 }
 
-export async function run(
-  argv: string[],
-  providers: Provider[],
-  now: () => Date = () => new Date(),
-  term: Terminal = NO_TERMINAL,
-): Promise<RunResult> {
+export async function run(argv: string[], deps: Deps, term: Terminal = NO_TERMINAL): Promise<RunResult> {
   const [name, ...rest] = argv;
   if (name === undefined || name === "-h" || name === "--help") {
     return { stdout: helpText(), stderr: "", exitCode: EXIT_OK };
@@ -62,5 +74,5 @@ export async function run(
     const what = name.startsWith("-") ? "unknown option" : "unknown command";
     return { stdout: "", stderr: `agentsctl: ${what} '${name}'\n\n${helpText()}`, exitCode: EXIT_USAGE };
   }
-  return COMMANDS[name].run(rest, { providers, now, term });
+  return COMMANDS[name].run(rest, { deps, now: deps.now ?? (() => new Date()), term });
 }

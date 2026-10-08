@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 import { run } from "./src/cli.js";
-import { providers } from "./src/providers/index.js";
+import { providers, sessionSources } from "./src/providers/index.js";
 
-run(process.argv.slice(2), providers, () => new Date(), {
+run(process.argv.slice(2), { providers, sessionSources, now: () => new Date(), cwd: process.cwd() }, {
   isTTY: !!process.stdout.isTTY,
   env: process.env,
   columns: process.stdout.columns,

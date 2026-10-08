@@ -7,8 +7,9 @@ import {
   fg,
   FORECAST_CRITICAL_AT,
   FORECAST_WARN_AT,
+  GLYPH_GAP,
   levelColor,
-  PROVIDER_STYLES,
+  paintProvider,
   stripAnsi,
   underline,
   WARN_AT,
@@ -117,8 +118,6 @@ export function formatTimestamp(d: Date): string {
 }
 
 export const REPORT_TITLE = "AI Usage Limits";
-/** Nerd Font glyphs often render wider than one cell, so leave two spaces before the name. */
-const GLYPH_GAP = "  ";
 /** Window rows line up with the provider name: one cell for the glyph plus the gap. */
 const INDENT = " ".repeat(1 + GLYPH_GAP.length);
 
@@ -158,11 +157,7 @@ const COLOR: Paint = {
   bold,
   title: (s) => bold(underline(s)),
   error: (s) => fg(errorColor, s),
-  provider: (name) => {
-    const style = PROVIDER_STYLES[name.toLowerCase()];
-    if (!style) return bold(name);
-    return bold(fg(style.color, style.glyph ? `${style.glyph}${GLYPH_GAP}${name}` : name));
-  },
+  provider: paintProvider,
 };
 
 /** Bar colored by usage level: filled part in the level color, empty part dimmed. */

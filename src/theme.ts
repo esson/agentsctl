@@ -44,5 +44,15 @@ export const bold = (s: string): string => `\x1b[1m${s}${RESET}`;
 export const dim = (s: string): string => `\x1b[2m${s}${RESET}`;
 export const underline = (s: string): string => `\x1b[4m${s}${RESET}`;
 
+/** Nerd Font glyphs often render wider than one cell, so leave two spaces before the name. */
+export const GLYPH_GAP = "  ";
+
+/** Provider name in bold, in its own color and with its glyph when it has a style. */
+export function paintProvider(name: string): string {
+  const style = PROVIDER_STYLES[name.toLowerCase()];
+  if (!style) return bold(name);
+  return bold(fg(style.color, style.glyph ? `${style.glyph}${GLYPH_GAP}${name}` : name));
+}
+
 // eslint-disable-next-line no-control-regex
 export const stripAnsi = (s: string): string => s.replace(/\x1b\[[0-9;]*m/g, "");

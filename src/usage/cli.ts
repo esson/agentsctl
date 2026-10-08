@@ -1,5 +1,6 @@
 import { parseArgs } from "node:util";
 import type { CollectOptions, Provider, ProviderResult } from "../providers/types.js";
+import { selectProviders } from "../providers/select.js";
 import { errorMessage } from "../providers/util.js";
 import { EXIT_OK, EXIT_USAGE, type RunResult } from "../result.js";
 import { NO_TERMINAL, useColor, type Terminal } from "../terminal.js";
@@ -36,32 +37,6 @@ async function runProvider(p: Provider, opts: CollectOptions): Promise<ProviderR
   } catch (e) {
     return { provider: p.displayName ?? p.name, ok: false, error: errorMessage(e) };
   }
-}
-
-/**
- * Parse `--provider` ("Codex, claude") into the matching providers, in registry order.
- * Returns an error message for unknown or empty lists.
- */
-export function selectProviders(
-  spec: string,
-  providers: Provider[],
-): { ok: true; selected: Provider[] } | { ok: false; error: string } {
-  const names = spec
-    // Commas or whitespace: PowerShell turns an unquoted a,b,c into an array that npm's
-    // .ps1 shim passes on as one space-separated argument ("a b c").
-    .split(/[\s,]+/)
-    .map((s) => s.trim().toLowerCase())
-    .filter(Boolean);
-  const unknown = names.filter((n) => !providers.some((p) => p.name === n));
-  if (unknown.length > 0 || names.length === 0) {
-    return {
-      ok: false,
-      error:
-        `unknown provider: ${unknown.join(", ") || "(none given)"}. ` +
-        `Known providers: ${providers.map((p) => p.name).join(", ")}`,
-    };
-  }
-  return { ok: true, selected: providers.filter((p) => names.includes(p.name)) };
 }
 
 export async function runUsage(

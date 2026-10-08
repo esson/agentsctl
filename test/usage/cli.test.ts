@@ -1,12 +1,12 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { run as runCli, type Terminal } from "../../src/cli.js";
-import { selectProviders } from "../../src/usage/cli.js";
+import { selectProviders } from "../../src/providers/select.js";
 import type { CollectOptions, Provider, ProviderResult } from "../../src/providers/types.js";
 
 // Everything here goes through the dispatcher as `agentsctl usage ...`.
 const run = (argv: string[], providers: Provider[], clock: () => Date, term?: Terminal) =>
-  runCli(["usage", ...argv], providers, clock, term);
+  runCli(["usage", ...argv], { providers, sessionSources: [], now: clock }, term);
 
 // Fake providers: no network, no token files. `calls` records which ones actually ran.
 const now = () => new Date(2026, 8, 23, 14, 30);

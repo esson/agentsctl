@@ -1,7 +1,7 @@
-import os from "node:os";
 import path from "node:path";
 import type { CollectOptions, Provider, ProviderResult, UsageWindow } from "../types.js";
 import { casUpdateJsonFile, isExpired, requestTokenRefresh, withRefresh } from "../refresh.js";
+import { claudeConfigDir } from "./paths.js";
 import { fetchJson, isFiniteNumber, isRecord, parseDate, ProviderError, readJsonFile, toErrorResult, windowStart, withStart } from "../util.js";
 
 // Verified contract: docs/providers/claude-usage.md
@@ -14,8 +14,7 @@ const TOKEN_URL = "https://platform.claude.com/v1/oauth/token";
 const CLIENT_ID = "9d1c250a-e61b-44d9-88ed-5944d1962f5e";
 
 export function claudeCredentialsPath(): string {
-  const dir = process.env.CLAUDE_CONFIG_DIR || path.join(os.homedir(), ".claude");
-  return path.join(dir, ".credentials.json");
+  return path.join(claudeConfigDir(), ".credentials.json");
 }
 
 const SESSION_SECONDS = 5 * 3600;
