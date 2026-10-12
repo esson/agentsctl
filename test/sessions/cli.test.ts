@@ -83,6 +83,44 @@ test("--pager: marks the output as pageable and lifts the --all limit; off by de
   assert.equal((await sessions(["--all"], [withSessions("claude", many)])).page, undefined);
 });
 
+test("--search: every folder, every word somewhere in title, folder, id, agent, client or branch", async () => {
+  const srcs = [
+    withSessions("claude", [
+      session("a1", 1, { title: "Fix the login test", cwd: "C:\\work\\web" }),
+      session("a2", 2, { title: "Write docs", cwd: "\\\\?\\C:\\work\\Login-Service" }),
+      session("a3", 3, { title: "Other", branch: "feature/login" }),
+    ]),
+    withSessions("codex", [session("x1", 4, { title: "Login flow", client: "desktop" }), session("x2", 5, { title: "Nothing" })]),
+  ];
+  const ids = async (argv: string[]) => [...(await sessions(argv, srcs)).stdout.matchAll(/--resume (\S+)/g)].map((m) => m[1]);
+  const r = await sessions(["--search", "LOGIN"], srcs);
+  assert.equal(r.exitCode, 0);
+  assert.deepEqual(calls.map((c) => c.opts), [{ cwd: undefined }, { cwd: undefined }], "every folder");
+  assert.match(r.stdout, /^\nSessions matching "LOGIN" in all folders\n/);
+  assert.match(r.stdout, /^ +cd "C:\\work\\web"; tool --resume a1$/m);
+  assert.deepEqual(await ids(["--search", "LOGIN"]), ["a1", "a2", "a3", "x1"]);
+  assert.deepEqual(await ids(["-s", "login desktop"]), ["x1"], "all words, client label");
+  assert.deepEqual(await ids(["-s", "login", "desktop"]), ["x1"], "without quotes");
+  assert.deepEqual(await ids(["-s", "codex"]), ["x1", "x2"], "agent name");
+  assert.deepEqual(await ids(["-s", "a2"]), ["a2"], "id");
+  assert.deepEqual(await ids(["-s", "login", "--provider", "codex"]), ["x1"]);
+  const none = await sessions(["-s", "zzz"], srcs);
+  assert.equal(none.exitCode, 0);
+  assert.match(none.stdout, /\nNo sessions match\.\n/);
+  const empty = await sessions(["--search", "  "], srcs);
+  assert.equal(empty.exitCode, 2);
+  assert.match(empty.stderr, /--search needs some text/);
+});
+
+test("--search: limited to 10 like --all, unless --limit or --pager", async () => {
+  const many = Array.from({ length: 15 }, (_, i) => session(`s${i}`, i, { title: "match" }));
+  const r = await sessions(["-s", "match"], [withSessions("claude", many)]);
+  assert.equal([...r.stdout.matchAll(/--resume/g)].length, 10);
+  assert.match(r.stdout, /5 older sessions not shown/);
+  const paged = await sessions(["-s", "match", "--pager"], [withSessions("claude", many)]);
+  assert.equal([...paged.stdout.matchAll(/--resume/g)].length, 15);
+});
+
 test("--limit: caps the list and validates its value", async () => {
   const r = await sessions(["--limit", "2"], sources());
   assert.equal([...r.stdout.matchAll(/--resume/g)].length, 2);

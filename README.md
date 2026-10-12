@@ -87,13 +87,18 @@ Codex    Write release notes              5 hours ago      Desktop App
 23 older sessions not shown (use --limit to show more)
 ```
 
+To find a session, search for words from its title, its folder or its branch: every word has to
+match, in any of them, and quotes are optional. `agentsctl sessions -s upload retry` lists the Claude session above, and
+`-s "docs desktop"` the Codex one. Only what the list shows is searched, not the conversations.
+
 ```
-agentsctl sessions [--all] [--provider <names>] [--limit <n>] [--pager] [--json] [--no-color] [-h | --help]
+agentsctl sessions [--all] [-s | --search <text>] [--provider <names>] [--limit <n>] [--pager] [--json] [--no-color] [-h | --help]
 ```
 
 | Option | What it does |
 |---|---|
 | `--all` | Sessions from every folder. Shows the 10 newest unless `--limit` or `--pager` is given. |
+| `-s`, `--search <text>` | Sessions from every folder that contain every word of `<text>`, case-insensitive, in the title, folder, id, agent, client, branch or model. Limited to 10 like `--all`. |
 | `--provider <names>` | Only these agents, same format as for `usage`: `codex`, `claude`, `copilot`, `cursor`. |
 | `--limit <n>` | At most `n` sessions in total (not per agent). |
 | `--pager` | Show the list in a pager, like `git log` (see [Pager](#pager)). |

@@ -3,13 +3,14 @@ import { selectProviders } from "../providers/select.js";
 import { errorMessage } from "../providers/util.js";
 import { EXIT_OK, EXIT_USAGE, type RunResult } from "../result.js";
 import { NO_TERMINAL, useColor, type Terminal } from "../terminal.js";
+import { matchesSearch, searchWords } from "./search.js";
 import { renderSessions, renderSessionsJson, type ListedSession, type SourceError } from "./render.js";
 import type { ListOptions, SessionResult, SessionSource } from "./types.js";
 
 // The `sessions` subcommand: argv + session sources + clock + folder in, text + exit code out.
 
 export const EXIT_ALL_FAILED = 1;
-/** --all lists every folder, so it is limited unless --limit or --pager says otherwise. */
+/** --all and --search list every folder, so they are limited unless --limit or --pager says otherwise. */
 export const ALL_FOLDERS_LIMIT = 10;
 
 export function helpText(sources: SessionSource[]): string {
@@ -19,8 +20,12 @@ Usage: agentsctl sessions [options]
 
 Options:
   --all                  Sessions from every folder (default: only the current folder)
+  -s, --search <text>    Sessions in any folder whose title, folder, id, agent, client, branch or model
+                         contains every word of <text> (case-insensitive;
+                         quotes are optional)
   --provider <names>     Agents, separated by commas or spaces (${[...new Set(sources.map((s) => s.name))].join(", ")})
-  --limit <n>            Show at most n sessions (default: all, or ${ALL_FOLDERS_LIMIT} with --all and no --pager)
+  --limit <n>            Show at most n sessions (default: all, or ${ALL_FOLDERS_LIMIT} with --all or --search
+                         and no --pager)
   --pager                Show the list in a pager ($AGENTSCTL_PAGER, $PAGER or less) when writing to a terminal
   --json                 Print machine-readable JSON instead of the list
   --no-color             Plain text: no colors or icons (also: NO_COLOR env var; FORCE_COLOR forces color)
@@ -56,12 +61,14 @@ export async function runSessions(argv: string[], sources: SessionSource[], ctx:
     exitCode: EXIT_USAGE,
   });
 
-  let values: { all?: boolean; provider?: string; limit?: string; pager?: boolean; json?: boolean; "no-color"?: boolean; help?: boolean };
+  let values: { all?: boolean; search?: string; provider?: string; limit?: string; pager?: boolean; json?: boolean; "no-color"?: boolean; help?: boolean };
+  let positionals: string[];
   try {
-    ({ values } = parseArgs({
+    ({ values, positionals } = parseArgs({
       args: argv,
       options: {
         all: { type: "boolean" },
+        search: { type: "string", short: "s" },
         provider: { type: "string" },
         limit: { type: "string" },
         pager: { type: "boolean" },
@@ -70,7 +77,7 @@ export async function runSessions(argv: string[], sources: SessionSource[], ctx:
         help: { type: "boolean", short: "h" },
       },
       strict: true,
-      allowPositionals: false,
+      allowPositionals: true,
     }));
   } catch (e) {
     return usageError(errorMessage(e), true);
@@ -78,8 +85,20 @@ export async function runSessions(argv: string[], sources: SessionSource[], ctx:
 
   if (values.help) return { stdout: helpText(sources), stderr: "", exitCode: EXIT_OK };
 
+  if (values.search === undefined && positionals.length > 0) {
+    return usageError(`unexpected argument '${positionals[0]}' (to search, use --search)`, true);
+  }
+  // `-s fix login` without quotes: the words after the first are positionals.
+  const query = values.search === undefined ? undefined : [values.search, ...positionals].join(" ").trim().replace(/\s+/g, " ");
+  let words: string[] | undefined;
+  if (query !== undefined) {
+    words = searchWords(query);
+    if (words.length === 0) return usageError("--search needs some text to search for");
+  }
+  const allFolders = !!values.all || words !== undefined;
+
   // A pager makes a long list easy to read, so --all then shows everything.
-  let limit = values.all && !values.pager ? ALL_FOLDERS_LIMIT : Infinity;
+  let limit = allFolders && !values.pager ? ALL_FOLDERS_LIMIT : Infinity;
   if (values.limit !== undefined) {
     if (!/^\s*[1-9]\d*\s*$/.test(values.limit)) return usageError("--limit must be a positive whole number");
     limit = Number(values.limit);
@@ -92,11 +111,12 @@ export async function runSessions(argv: string[], sources: SessionSource[], ctx:
     selected = sel.selected;
   }
 
-  const folder = values.all ? undefined : ctx.cwd;
+  const folder = allFolders ? undefined : ctx.cwd;
   const results = await Promise.all(selected.map((s) => listSource(s, { cwd: folder })));
   const errors: SourceError[] = results.flatMap((r) => (r.ok ? [] : [{ provider: r.provider, error: r.error }]));
   const listed: ListedSession[] = results
     .flatMap((r) => (r.ok ? r.sessions.map((session) => ({ provider: r.provider, session })) : []))
+    .filter((l) => words === undefined || matchesSearch(l, words))
     .sort((a, b) => b.session.lastUsedAt.getTime() - a.session.lastUsedAt.getTime());
   const shown = listed.slice(0, limit);
 
@@ -105,6 +125,7 @@ export async function runSessions(argv: string[], sources: SessionSource[], ctx:
     : renderSessions(shown, errors, ctx.now(), {
         color: useColor(!!values["no-color"], term),
         folder,
+        search: query,
         columns: term.isTTY ? term.columns : undefined,
         hidden: listed.length - shown.length,
       });

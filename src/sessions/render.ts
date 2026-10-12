@@ -21,6 +21,8 @@ export interface SessionsRenderOptions {
   color?: boolean;
   /** The folder that was listed; undefined = every folder (resume lines then start with `cd`). */
   folder?: string;
+  /** The --search text, shown in the header. */
+  search?: string;
   /** Terminal width in columns, used to shorten long titles. Unknown (e.g. a pipe) = no limit. */
   columns?: number;
   /** Sessions left out by --limit. */
@@ -97,10 +99,13 @@ export function renderSessions(
     error: (s: string) => (color ? fg(errorColor, s) : s),
   };
   const all = opts.folder === undefined;
-  const header = all ? "Sessions in all folders" : `Sessions in ${displayFolder(opts.folder as string)}`;
+  const where = all ? "all folders" : displayFolder(opts.folder as string);
+  const header = opts.search ? `Sessions matching "${opts.search}" in ${where}` : `Sessions in ${where}`;
   const lines: string[] = ["", paint.title(header), ""];
 
-  if (listed.length === 0) lines.push(errors.length > 0 ? "No sessions could be read." : "No sessions found.");
+  if (listed.length === 0) {
+    lines.push(errors.length > 0 ? "No sessions could be read." : opts.search ? "No sessions match." : "No sessions found.");
+  }
 
   const agentWidth = Math.max(0, ...listed.map((l) => width(agentLabel(l.provider, color))));
   const agos = listed.map((l) => formatAgo(l.session.lastUsedAt, now));
