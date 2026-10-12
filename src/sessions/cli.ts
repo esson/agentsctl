@@ -33,7 +33,7 @@ Exit codes: 0 = listed (also when there are no sessions), 1 = no agent could be 
 }
 
 /** Run one source; a throw becomes an error result so it never affects the others. */
-async function listSource(s: SessionSource, opts: ListOptions): Promise<SessionResult> {
+export async function listSource(s: SessionSource, opts: ListOptions): Promise<SessionResult> {
   try {
     return await s.list(opts);
   } catch (e) {

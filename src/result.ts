@@ -5,6 +5,11 @@ export interface RunResult {
   exitCode: number;
   /** stdout may be shown through a pager (`--pager`) when it goes to a terminal. */
   page?: boolean;
+  /**
+   * A program to run after printing, with the terminal attached (`agentsctl resume`); its exit
+   * code becomes agentsctl's. Commands only describe it, the entry point runs it.
+   */
+  exec?: { argv: string[]; cwd: string };
 }
 
 export const EXIT_OK = 0;

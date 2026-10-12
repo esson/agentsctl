@@ -31,6 +31,7 @@ test("threadToSession: name, times, folder as stored, branch, model and resume c
     startedAt: new Date("2026-10-12T08:00:00Z"),
     lastUsedAt: new Date("2026-10-12T09:00:00Z"),
     resumeCommand: "codex resume t1",
+    resumeArgv: ["codex", "resume", "t1"],
     branch: "main",
     model: "gpt-6-sol",
     client: "cli",

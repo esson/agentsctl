@@ -13,6 +13,8 @@ export interface Session {
   lastUsedAt: Date;
   /** Copy-pasteable command that resumes the session from its folder. */
   resumeCommand: string;
+  /** The same command as program and arguments, run by `agentsctl resume` in the session's folder. */
+  resumeArgv: string[];
   branch?: string;
   model?: string;
   /** The app the session ran in; undefined when the store does not say. */

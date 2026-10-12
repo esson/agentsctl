@@ -42,6 +42,7 @@ const reply = [1, { Content: [[3, { Id: "p2", Content: "ok" }]] }];
 const chatFile = (...items: unknown[]) => Buffer.concat([Buffer.from([1]), ...items.map(pack)]);
 
 const LAST = new Date("2026-10-13T09:00:00Z");
+const OPEN = { command: 'start "x.sln"', argv: ["start", "", "x.sln"] };
 
 test("MsgpackReader: values in sequence, timestamps, and an error on truncated input", () => {
   const ts = Buffer.from([0xd6, 0xff, 0, 0, 0, 60]); // timestamp 32: 60 s after the epoch
@@ -54,7 +55,7 @@ test("MsgpackReader: values in sequence, timestamps, and an error on truncated i
 });
 
 test("parseVisualStudioChat: first prompt as the title, created time, client and resume command", () => {
-  const s = parseVisualStudioChat("c1", chatFile(header(), userMessage("Fix the build\nmore"), reply), "C:\\work\\app\\src", 'start "x.sln"', LAST);
+  const s = parseVisualStudioChat("c1", chatFile(header(), userMessage("Fix the build\nmore"), reply), "C:\\work\\app\\src", OPEN, LAST);
   assert.deepEqual(s, {
     id: "c1",
     title: "Fix the build",
@@ -62,16 +63,17 @@ test("parseVisualStudioChat: first prompt as the title, created time, client and
     startedAt: new Date("2026-10-12T08:00:00Z"),
     lastUsedAt: LAST,
     resumeCommand: 'start "x.sln"',
+    resumeArgv: ["start", "", "x.sln"],
     client: "visual-studio",
   });
 });
 
 test("parseVisualStudioChat: a Name wins; no prompt or another format version -> not a session", () => {
-  assert.equal(parseVisualStudioChat("c1", chatFile(header({ Name: "Named chat" }), userMessage("hi")), "C:\\a", "x", LAST)?.title, "Named chat");
-  assert.equal(parseVisualStudioChat("c1", chatFile(header(), reply), "C:\\a", "x", LAST), null);
+  assert.equal(parseVisualStudioChat("c1", chatFile(header({ Name: "Named chat" }), userMessage("hi")), "C:\\a", OPEN, LAST)?.title, "Named chat");
+  assert.equal(parseVisualStudioChat("c1", chatFile(header(), reply), "C:\\a", OPEN, LAST), null);
   const v2 = chatFile(header(), userMessage("hi"));
   v2[0] = 2;
-  assert.equal(parseVisualStudioChat("c1", v2, "C:\\a", "x", LAST), null);
+  assert.equal(parseVisualStudioChat("c1", v2, "C:\\a", OPEN, LAST), null);
 });
 
 test("parseRecentList: FullPath of each entry in CodeContainers.Offline", () => {
@@ -126,7 +128,9 @@ test("list: every recent solution's chats for --all; resume opens the solution, 
   const byId = Object.fromEntries(r.sessions.map((s) => [s.id, s]));
   assert.deepEqual(Object.keys(byId).sort(), ["chat-1", "chat-2"]);
   assert.equal(byId["chat-1"].resumeCommand, `start "${path.join(solution, "App.sln")}"`);
+  assert.deepEqual(byId["chat-1"].resumeArgv, ["start", "", path.join(solution, "App.sln")]);
   assert.equal(byId["chat-2"].resumeCommand, `start devenv "${loose}"`);
+  assert.deepEqual(byId["chat-2"].resumeArgv, ["start", "", "devenv", loose]);
   assert.equal(byId["chat-1"].lastUsedAt.getTime(), LAST.getTime());
 });
 

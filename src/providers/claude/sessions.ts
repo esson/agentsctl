@@ -102,6 +102,7 @@ export function parseClaudeTranscript(id: string, transcript: string, fallbackTi
     startedAt: first,
     lastUsedAt: last ?? fallbackTime,
     resumeCommand: `claude --resume ${id}`,
+    resumeArgv: ["claude", "--resume", id],
   };
   if (branch) session.branch = branch;
   if (model) session.model = model;

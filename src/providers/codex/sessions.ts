@@ -65,6 +65,7 @@ export function threadToSession(r: ThreadRow): Session | null {
     startedAt: ms(r.created_at_ms),
     lastUsedAt,
     resumeCommand: `codex resume ${r.id}`,
+    resumeArgv: ["codex", "resume", r.id],
   };
   if (r.git_branch) session.branch = r.git_branch;
   if (r.model) session.model = r.model;

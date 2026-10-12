@@ -68,6 +68,7 @@ test("parse: title, times, folder, branch, latest model and resume command", () 
     startedAt: new Date("2026-10-12T08:00:00Z"),
     lastUsedAt: new Date("2026-10-14T10:00:00Z"),
     resumeCommand: "copilot --resume s1",
+    resumeArgv: ["copilot", "--resume", "s1"],
     branch: "main",
     model: "gpt-6-sol",
     client: "cli",

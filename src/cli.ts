@@ -3,6 +3,7 @@ import { EXIT_OK, EXIT_USAGE, type RunResult } from "./result.js";
 import { NO_TERMINAL, type Terminal } from "./terminal.js";
 import type { SessionSource } from "./sessions/types.js";
 import { runSessions } from "./sessions/cli.js";
+import { runResume } from "./sessions/resume.js";
 import { runUsage } from "./usage/cli.js";
 
 // CLI logic without process I/O: argv + dependencies in, text + exit code out.
@@ -15,7 +16,7 @@ export type { Terminal } from "./terminal.js";
 export interface Deps {
   /** Usage providers, for `usage`. */
   providers: Provider[];
-  /** Session sources, for `sessions`. */
+  /** Session sources, for `sessions` and `resume`. */
   sessionSources: SessionSource[];
   now?: () => Date;
   /** Current folder, for `sessions`. */
@@ -42,6 +43,10 @@ const COMMANDS: Record<string, Command> = {
     summary: "List saved agent sessions for this folder, with the command to resume each",
     run: (argv, ctx) =>
       runSessions(argv, ctx.deps.sessionSources, { now: ctx.now, cwd: ctx.deps.cwd ?? process.cwd(), term: ctx.term }),
+  },
+  resume: {
+    summary: "Resume a saved session by its id, in the session's folder",
+    run: (argv, ctx) => runResume(argv, ctx.deps.sessionSources),
   },
 };
 

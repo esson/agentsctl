@@ -18,6 +18,7 @@ function session(id: string, minutesAgo: number, extra: Partial<Session> = {}): 
     startedAt: ago(minutesAgo + 30),
     lastUsedAt: ago(minutesAgo),
     resumeCommand: `tool --resume ${id}`,
+    resumeArgv: ["tool", "--resume", id],
     client: "cli",
     ...extra,
   };

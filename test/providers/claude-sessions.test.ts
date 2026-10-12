@@ -53,6 +53,7 @@ test("parse: title, times, folder, branch, model and resume command", () => {
     startedAt: new Date("2026-10-12T08:00:00Z"),
     lastUsedAt: new Date("2026-10-12T09:05:00Z"),
     resumeCommand: "claude --resume abc",
+    resumeArgv: ["claude", "--resume", "abc"],
     branch: "feature/x",
     model: "claude-opus-5-5",
   });

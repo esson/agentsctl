@@ -46,7 +46,7 @@ export function parseVisualStudioChat(
   id: string,
   data: Buffer,
   solutionFolder: string,
-  resumeCommand: string,
+  resume: OpenCommand,
   lastUsedAt: Date,
 ): Session | null {
   if (data[0] !== FORMAT_VERSION) return null;
@@ -69,7 +69,8 @@ export function parseVisualStudioChat(
     cwd: solutionFolder,
     startedAt: time(header.TimeCreated),
     lastUsedAt,
-    resumeCommand,
+    resumeCommand: resume.command,
+    resumeArgv: resume.argv,
     client: "visual-studio",
   };
 }
@@ -148,14 +149,23 @@ async function belongsTo(solutionFolder: string, cwd: string): Promise<boolean> 
   return root !== undefined && (sameFolder(root, cwd) || isWithin(cwd, root));
 }
 
-/** How to get back to a chat: open the solution (or folder) in Visual Studio, then pick the chat. */
-async function openCommand(solutionFolder: string, solutionName: string): Promise<string> {
+/** How to get back to a chat: the shown command (PowerShell) and the argv run through cmd.exe. */
+export interface OpenCommand {
+  command: string;
+  argv: string[];
+}
+
+/**
+ * Open the solution (or folder) in Visual Studio, then pick the chat from Copilot Chat's history.
+ * cmd.exe's `start` takes a window title first, hence the empty argument in argv.
+ */
+async function openCommand(solutionFolder: string, solutionName: string): Promise<OpenCommand> {
   const candidates = solutionName.endsWith(".slnx") ? [solutionName] : [`${solutionName}.sln`, `${solutionName}.slnx`];
   for (const c of candidates) {
     const file = path.join(solutionFolder, c);
-    if (await exists(file)) return `start "${file}"`;
+    if (await exists(file)) return { command: `start "${file}"`, argv: ["start", "", file] };
   }
-  return `start devenv "${solutionFolder}"`;
+  return { command: `start devenv "${solutionFolder}"`, argv: ["start", "", "devenv", solutionFolder] };
 }
 
 /** Every chat of one solution folder: .vs/<solution name>/copilot-chat/<hash>/sessions/<chat id>. */

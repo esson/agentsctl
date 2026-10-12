@@ -26,6 +26,7 @@ test("chatToSession: title, times, folder and resume command", () => {
     startedAt: new Date("2026-10-12T08:00:00Z"),
     lastUsedAt: new Date("2026-10-12T09:00:00Z"),
     resumeCommand: "agent --resume c1",
+    resumeArgv: ["agent", "--resume", "c1"],
     client: "cli",
   });
   assert.equal(chatToSession("c1", { ...META, title: undefined }, APP)?.title, null);

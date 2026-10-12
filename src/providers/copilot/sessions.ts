@@ -99,6 +99,7 @@ export function parseCopilotSession(id: string, ws: Record<string, string>, even
     startedAt: time(ws.created_at),
     lastUsedAt,
     resumeCommand: `copilot --resume ${id}`,
+    resumeArgv: ["copilot", "--resume", id],
   };
   if (ws.branch) session.branch = ws.branch;
   if (model) session.model = model;

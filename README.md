@@ -8,6 +8,7 @@ Cursor). It is built from subcommands; a subcommand is always required, and
 |---|---|
 | `agentsctl usage` | Shows how much of your subscription usage limits you have used, for all four tools in one report. |
 | `agentsctl sessions` | Lists the saved sessions for the current folder, newest first, with the command to resume each. |
+| `agentsctl resume <id>` | Resumes a saved session by its id: runs the agent's resume command in the session's folder. |
 
 ## Install and build
 
@@ -52,7 +53,8 @@ Reads each agent's local session store (read-only) and lists the sessions starte
 current folder (not its subfolders), merged across agents and sorted by last use. Each entry
 shows the agent, the title, when it was last used and the client the session ran in (`CLI`,
 `VS Code`, `Visual Studio`, `Desktop App`, or `Unknown` when the store does not say).
-Copy the second line of an entry to resume that session:
+Copy the second line of an entry to resume that session, or pass its id to
+[`agentsctl resume`](#agentsctl-resume):
 
 ```
 Sessions in C:\dev\my-app
@@ -143,6 +145,31 @@ paging off. If no pager can be started, the list is printed with a warning.
 Like git, agentsctl gives `less` the setting `LESS=FRX` unless `LESS` is set: it quits right away
 when the list fits on one screen, keeps colors, and leaves the list on screen. It also sets
 `LESSUTFCHARDEF` (unless set) so that the Nerd Font icons are shown instead of `<U+EC82>`.
+
+## `agentsctl resume`
+
+A shortcut for the resume line: give it a session id from `agentsctl sessions` and it runs the
+agent's own resume command in the session's folder, from any folder.
+
+```
+agentsctl resume <id> [--dry-run] [-h | --help]
+```
+
+```
+> agentsctl resume 3f2a
+Resuming Claude session "Add retry to the upload client" in C:\dev\my-app
+> cd "C:\dev\my-app"; claude --resume 3f2a9c1e-7b4d-4e8a-9f0c-2d6b1a5e8c7f
+```
+
+- The start of an id is enough when only one session matches (case-insensitive). When several
+  match, they are listed, newest first, and nothing runs.
+- Every agent and every folder is searched, not just the current folder.
+- The agent runs in this terminal with the session's folder as its working folder. Your shell's
+  own folder does not change: a program cannot change the folder of the shell that started it.
+- `--dry-run` prints the `cd` and resume line instead of running it.
+- For Copilot Chat in Visual Studio, this opens the solution in Visual Studio (see above).
+- The exit code is the agent's; 1 when no session has that id or its folder no longer exists,
+  2 for usage errors and ids that match more than one session.
 
 ## `agentsctl usage`
 
