@@ -71,6 +71,16 @@ test("--all: no folder filter, resume lines start with cd, limited to 10 by defa
   assert.match(r.stdout, /15 older sessions not shown \(use --limit to show more\)/);
 });
 
+test("--pager: marks the output as pageable and lifts the --all limit; off by default", async () => {
+  const many = Array.from({ length: 25 }, (_, i) => session(`s${i}`, i, { cwd: `C:\\p${i}` }));
+  const paged = await sessions(["--all", "--pager"], [withSessions("claude", many)]);
+  assert.equal(paged.page, true);
+  assert.equal([...paged.stdout.matchAll(/--resume/g)].length, 25);
+  const limited = await sessions(["--all", "--pager", "--limit", "3"], [withSessions("claude", many)]);
+  assert.equal([...limited.stdout.matchAll(/--resume/g)].length, 3);
+  assert.equal((await sessions(["--all"], [withSessions("claude", many)])).page, undefined);
+});
+
 test("--limit: caps the list and validates its value", async () => {
   const r = await sessions(["--limit", "2"], sources());
   assert.equal([...r.stdout.matchAll(/--resume/g)].length, 2);

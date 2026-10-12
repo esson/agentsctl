@@ -3,6 +3,8 @@ export interface RunResult {
   stdout: string;
   stderr: string;
   exitCode: number;
+  /** stdout may be shown through a pager (`--pager`) when it goes to a terminal. */
+  page?: boolean;
 }
 
 export const EXIT_OK = 0;

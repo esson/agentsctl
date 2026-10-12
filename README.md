@@ -23,9 +23,10 @@ Claude   Agentsctl subcommand CLI from usagectl   2 hours ago
 
 | Option | What it does |
 |---|---|
-| `--all` | Sessions from every folder; the resume line then starts with `cd "<folder>";`. Shows the 10 newest unless `--limit` is given. |
+| `--all` | Sessions from every folder; the resume line then starts with `cd "<folder>";`. Shows the 10 newest unless `--limit` or `--pager` is given. |
 | `--provider <names>` | Only these agents (same format as for `usage`). |
 | `--limit <n>` | At most `n` sessions. |
+| `--pager` | Show the list in a pager, like `git log`, when writing to a terminal (piped output is never paged). The pager is `$AGENTSCTL_PAGER`, else `$PAGER`, else `less` (on Windows also the `less` that comes with Git for Windows); `cat` or an empty value turns paging off. `less` gets `LESS=FRX` unless `LESS` is set: it quits when the list fits on one screen and keeps colors. It also gets `LESSUTFCHARDEF` (unless set) so the Nerd Font icons are shown rather than `<U+EC82>`. |
 | `--json` | `{ sessions, errors }`, each session with `provider`, `id`, `title`, `cwd`, `startedAt`, `lastUsedAt`, `resumeCommand` and, when known, `branch` and `model`. |
 | `--no-color` | Plain text. |
 

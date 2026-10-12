@@ -9,7 +9,7 @@ import type { ListOptions, SessionResult, SessionSource } from "./types.js";
 // The `sessions` subcommand: argv + session sources + clock + folder in, text + exit code out.
 
 export const EXIT_ALL_FAILED = 1;
-/** --all lists every folder, so it is limited unless --limit says otherwise. */
+/** --all lists every folder, so it is limited unless --limit or --pager says otherwise. */
 export const ALL_FOLDERS_LIMIT = 10;
 
 export function helpText(sources: SessionSource[]): string {
@@ -20,7 +20,8 @@ Usage: agentsctl sessions [options]
 Options:
   --all                  Sessions from every folder (default: only the current folder)
   --provider <names>     Agents, separated by commas or spaces (${sources.map((s) => s.name).join(", ")})
-  --limit <n>            Show at most n sessions (default: all, or ${ALL_FOLDERS_LIMIT} with --all)
+  --limit <n>            Show at most n sessions (default: all, or ${ALL_FOLDERS_LIMIT} with --all and no --pager)
+  --pager                Show the list in a pager ($AGENTSCTL_PAGER, $PAGER or less) when writing to a terminal
   --json                 Print machine-readable JSON instead of the list
   --no-color             Plain text: no colors or icons (also: NO_COLOR env var; FORCE_COLOR forces color)
   -h, --help             Show this help
@@ -55,7 +56,7 @@ export async function runSessions(argv: string[], sources: SessionSource[], ctx:
     exitCode: EXIT_USAGE,
   });
 
-  let values: { all?: boolean; provider?: string; limit?: string; json?: boolean; "no-color"?: boolean; help?: boolean };
+  let values: { all?: boolean; provider?: string; limit?: string; pager?: boolean; json?: boolean; "no-color"?: boolean; help?: boolean };
   try {
     ({ values } = parseArgs({
       args: argv,
@@ -63,6 +64,7 @@ export async function runSessions(argv: string[], sources: SessionSource[], ctx:
         all: { type: "boolean" },
         provider: { type: "string" },
         limit: { type: "string" },
+        pager: { type: "boolean" },
         json: { type: "boolean" },
         "no-color": { type: "boolean" },
         help: { type: "boolean", short: "h" },
@@ -76,7 +78,8 @@ export async function runSessions(argv: string[], sources: SessionSource[], ctx:
 
   if (values.help) return { stdout: helpText(sources), stderr: "", exitCode: EXIT_OK };
 
-  let limit = values.all ? ALL_FOLDERS_LIMIT : Infinity;
+  // A pager makes a long list easy to read, so --all then shows everything.
+  let limit = values.all && !values.pager ? ALL_FOLDERS_LIMIT : Infinity;
   if (values.limit !== undefined) {
     if (!/^\s*[1-9]\d*\s*$/.test(values.limit)) return usageError("--limit must be a positive whole number");
     limit = Number(values.limit);
@@ -106,5 +109,7 @@ export async function runSessions(argv: string[], sources: SessionSource[], ctx:
         hidden: listed.length - shown.length,
       });
   const allFailed = results.length > 0 && results.every((r) => !r.ok);
-  return { stdout, stderr: "", exitCode: allFailed ? EXIT_ALL_FAILED : EXIT_OK };
+  const result: RunResult = { stdout, stderr: "", exitCode: allFailed ? EXIT_ALL_FAILED : EXIT_OK };
+  if (values.pager) result.page = true;
+  return result;
 }
