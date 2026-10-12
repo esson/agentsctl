@@ -50,23 +50,23 @@ For development without building: `npm run dev -- usage --json`. Tests: `npm tes
 
 Reads each agent's local session store (read-only) and lists the sessions started in exactly the
 current folder (not its subfolders), merged across agents and sorted by last use. Each entry
-shows the agent, the client the session ran in (`CLI`, `VS Code`, `Visual Studio`,
-`Desktop App`, or `Unknown` when the store does not say), the title and when it was last used.
+shows the agent, the title, when it was last used and the client the session ran in (`CLI`,
+`VS Code`, `Visual Studio`, `Desktop App`, or `Unknown` when the store does not say).
 Copy the second line of an entry to resume that session:
 
 ```
 Sessions in C:\dev\my-app
 
-Claude    CLI           Add retry to the upload client   12 minutes ago
+Claude    Add retry to the upload client   12 minutes ago   CLI
           claude --resume 3f2a9c1e-7b4d-4e8a-9f0c-2d6b1a5e8c7f
 
-Copilot   Desktop App   Fix Flaky Login Test             3 hours ago
+Copilot   Fix Flaky Login Test             3 hours ago      Desktop App
           copilot --resume b81d4e2a-5c3f-4a9b-8e7d-1f0a2c6b9d4e
 
-Codex     CLI           Explain the build pipeline       2 days ago
+Codex     Explain the build pipeline       2 days ago       CLI
           codex resume 01a1f2c3-4d5e-7f60-8a9b-0c1d2e3f4a5b
 
-Cursor    CLI           Refactor Settings Page           9 days ago
+Cursor    Refactor Settings Page           9 days ago       CLI
           agent --resume 6c9e2b4f-1a3d-4e5f-8b7a-9d0c1e2f3a4b
 ```
 
@@ -76,10 +76,10 @@ session's folder first (for PowerShell and POSIX shells; cmd.exe does not accept
 ```
 Sessions in all folders
 
-Claude   CLI           Add retry to the upload client   12 minutes ago
+Claude   Add retry to the upload client   12 minutes ago   CLI
          cd "C:\dev\my-app"; claude --resume 3f2a9c1e-7b4d-4e8a-9f0c-2d6b1a5e8c7f
 
-Codex    Desktop App   Write release notes              5 hours ago
+Codex    Write release notes              5 hours ago      Desktop App
          cd "C:\dev\docs-site"; codex resume 01a1f2c3-4d5e-7f60-8a9b-0c1d2e3f4a5b
 
 23 older sessions not shown (use --limit to show more)

@@ -121,10 +121,11 @@ export function renderSessions(
     const title = truncate(titles[i], titleWidth);
     const titlePad = " ".repeat(titleWidth - width(title));
     const shownTitle = l.session.title === null ? paint.dim(title) : title;
-    const client = clients[i].padEnd(clientWidth);
-    const shownClient = l.session.client ? client : paint.dim(client);
+    // The client is the last column, so it is not padded (no trailing spaces).
+    const agoPad = " ".repeat(agoWidth - width(agos[i]));
+    const shownClient = l.session.client ? clients[i] : paint.dim(clients[i]);
     lines.push(
-      `${paint.agent(l.provider)}${agentPad}${COLUMN_GAP}${shownClient}${COLUMN_GAP}${shownTitle}${titlePad}${COLUMN_GAP}${agos[i]}`,
+      `${paint.agent(l.provider)}${agentPad}${COLUMN_GAP}${shownTitle}${titlePad}${COLUMN_GAP}${agos[i]}${agoPad}${COLUMN_GAP}${shownClient}`,
     );
     lines.push(`${indent}${paint.dim(resumeLine(l.session, all))}`);
   });
