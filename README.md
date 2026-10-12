@@ -9,37 +9,129 @@ Cursor). It is built from subcommands; a subcommand is always required, and
 | `agentsctl usage` | Shows how much of your subscription usage limits you have used, for all four tools in one report. |
 | `agentsctl sessions` | Lists the saved sessions for the current folder, newest first, with the command to resume each. |
 
+## Install and build
+
+Requires Node.js 20 or later (developed on Node 24, Windows 11).
+
+```sh
+npm install
+npm run build        # compiles to dist/
+npm start -- usage   # same as: node dist/agentsctl.js usage
+```
+
+Inside the project you can also run `npx agentsctl usage`.
+
+### Global command (`npm link`)
+
+To run `agentsctl` from any terminal, link the project globally:
+
+```sh
+npm run build
+npm link
+agentsctl usage --json      # now available everywhere
+```
+
+On Windows, npm creates `agentsctl.cmd` / `agentsctl.ps1` shims in the global npm directory
+(e.g. `C:\Program Files\nodejs\`) that point back to this project's `dist/agentsctl.js`.
+Because it is a link, not a copy, code changes only need `npm run build` — no re-link.
+
+To remove the global command:
+
+```sh
+npm unlink -g agentsctl
+```
+
+If you prefer a standalone copy that does not follow the working tree, use
+`npm install -g .` instead (re-run it after each change).
+
+For development without building: `npm run dev -- usage --json`. Tests: `npm test`.
+
 ## `agentsctl sessions`
 
 Reads each agent's local session store (read-only) and lists the sessions started in exactly the
-current folder, merged across agents and sorted by last use:
+current folder (not its subfolders), merged across agents and sorted by last use. Copy the
+second line of an entry to resume that session:
 
 ```
-Sessions in C:\dev\code\personal\agentsctl
+Sessions in C:\dev\my-app
 
-Claude   Agentsctl subcommand CLI from usagectl   2 hours ago
-         claude --resume 79f8ccaa-3abb-4f44-9b47-6140b0c0420c
+Claude    Add retry to the upload client   12 minutes ago
+          claude --resume 3f2a9c1e-7b4d-4e8a-9f0c-2d6b1a5e8c7f
+
+Copilot   Fix Flaky Login Test             3 hours ago
+          copilot --resume b81d4e2a-5c3f-4a9b-8e7d-1f0a2c6b9d4e
+
+Codex     Explain the build pipeline       2 days ago
+          codex resume 01a1f2c3-4d5e-7f60-8a9b-0c1d2e3f4a5b
+
+Cursor    Refactor Settings Page           9 days ago
+          agent --resume 6c9e2b4f-1a3d-4e5f-8b7a-9d0c1e2f3a4b
+```
+
+With `--all`, sessions from every folder are listed, and the resume line changes to the
+session's folder first (for PowerShell and POSIX shells; cmd.exe does not accept `;`):
+
+```
+Sessions in all folders
+
+Claude   Add retry to the upload client   12 minutes ago
+         cd "C:\dev\my-app"; claude --resume 3f2a9c1e-7b4d-4e8a-9f0c-2d6b1a5e8c7f
+
+Codex    Write release notes              5 hours ago
+         cd "C:\dev\docs-site"; codex resume 01a1f2c3-4d5e-7f60-8a9b-0c1d2e3f4a5b
+
+23 older sessions not shown (use --limit to show more)
+```
+
+```
+agentsctl sessions [--all] [--provider <names>] [--limit <n>] [--pager] [--json] [--no-color] [-h | --help]
 ```
 
 | Option | What it does |
 |---|---|
-| `--all` | Sessions from every folder; the resume line then starts with `cd "<folder>";`. Shows the 10 newest unless `--limit` or `--pager` is given. |
-| `--provider <names>` | Only these agents (same format as for `usage`). |
-| `--limit <n>` | At most `n` sessions. |
-| `--pager` | Show the list in a pager, like `git log`, when writing to a terminal (piped output is never paged). The pager is `$AGENTSCTL_PAGER`, else `$PAGER`, else `less` (on Windows also the `less` that comes with Git for Windows); `cat` or an empty value turns paging off. `less` gets `LESS=FRX` unless `LESS` is set: it quits when the list fits on one screen and keeps colors. It also gets `LESSUTFCHARDEF` (unless set) so the Nerd Font icons are shown rather than `<U+EC82>`. |
-| `--json` | `{ sessions, errors }`, each session with `provider`, `id`, `title`, `cwd`, `startedAt`, `lastUsedAt`, `resumeCommand` and, when known, `branch` and `model`. |
-| `--no-color` | Plain text. |
+| `--all` | Sessions from every folder. Shows the 10 newest unless `--limit` or `--pager` is given. |
+| `--provider <names>` | Only these agents, same format as for `usage`: `codex`, `claude`, `copilot`, `cursor`. |
+| `--limit <n>` | At most `n` sessions in total (not per agent). |
+| `--pager` | Show the list in a pager, like `git log` (see [Pager](#pager)). |
+| `--json` | `{ sessions, errors }`. Each session has `provider`, `id`, `title` (or `null`), `cwd`, `startedAt` (or `null`), `lastUsedAt`, `resumeCommand` and, when known, `branch` and `model`; each error has `provider` and `error`. |
+| `--no-color` | Plain text without colors or icons; the same rules as for `usage` apply (see [Colors and icons](#colors-and-icons)). |
 
-Supported: Codex, Claude Code, the GitHub Copilot CLI and the Cursor agent CLI. An agent that is not installed is skipped; one whose store
-cannot be read shows `could not read: <reason>`. Details of each store are in
-`docs/providers/*-sessions.md`.
+An agent that is not installed is skipped. One whose store cannot be read shows
+`could not read: <reason>` and does not hide the others. Exit codes: 0 = listed (also when there
+are no sessions), 1 = no agent could be read, 2 = usage error.
+
+### Where sessions are read from
+
+| Agent | Store | Left out |
+|---|---|---|
+| Codex | `~/.codex/state_<N>.sqlite`, table `threads` | archived threads, subagents, threads without a prompt |
+| Claude Code | `$CLAUDE_CONFIG_DIR/projects/<folder>/<id>.jsonl`, default `~/.claude/projects` | subagent transcripts, sessions without a reply |
+| Copilot CLI | `~/.copilot/session-state/<id>/workspace.yaml` and `events.jsonl` | sessions of the Copilot desktop app and Windows Terminal's agent, sessions without a message |
+| Cursor agent CLI | `~/.cursor/chats/<md5 of folder>/<id>/meta.json` | subagent chats, chats without a conversation |
+
+The stores read are those of the terminal agents. Codex keeps the threads of its desktop app and
+VS Code extension in the same table, and `codex resume` offers them, so they are listed too; the
+Copilot desktop app's sessions are not, and chats in the Cursor editor are stored elsewhere. The
+title is the session's name or generated title, else its first prompt, else `(untitled)`.
+Details of each store are in `docs/providers/*-sessions.md`.
+
+### Pager
+
+With `--pager` and output to a terminal, the list is shown in a pager. Piped output is never
+paged. The pager is `$AGENTSCTL_PAGER`, else `$PAGER`, else `less`, and on Windows also the
+`less` that comes with Git for Windows. Setting either variable to `cat` or an empty value turns
+paging off. If no pager can be started, the list is printed with a warning.
+
+Like git, agentsctl gives `less` the setting `LESS=FRX` unless `LESS` is set: it quits right away
+when the list fits on one screen, keeps colors, and leaves the list on screen. It also sets
+`LESSUTFCHARDEF` (unless set) so that the Nerd Font icons are shown instead of `<U+EC82>`.
 
 ## `agentsctl usage`
 
-It reuses the login each tool has already stored on your machine, calls the same
-usage endpoint the tool itself uses, and prints percent used (the bar fills up as you use more) plus when each limit window resets,
-both as time remaining and as a clock time. Windows use the same names across tools:
-`Session (5h)`, `Weekly`, `Monthly`, with a qualifier in parentheses where needed.
+It reuses the login each tool has already stored on your machine, calls the same usage endpoint
+the tool itself uses, and prints percent used (the bar fills up as you use more) plus when each
+limit window resets, both as time remaining and as a clock time. Windows use the same names
+across tools: `Session (5h)`, `Weekly`, `Monthly`, with a qualifier in parentheses where needed.
 
 ```
 AI Usage Limits — 2026-10-09 11:19
@@ -86,44 +178,7 @@ Claude
    Resets in 2 days and 7 hours · 11 Oct 19:00
 ```
 
-## Install and build
-
-Requires Node.js 20 or later (developed on Node 24, Windows 11).
-
-```sh
-npm install
-npm run build        # compiles to dist/
-npm start -- usage   # same as: node dist/agentsctl.js usage
-```
-
-Inside the project you can also run `npx agentsctl usage`.
-
-### Global command (`npm link`)
-
-To run `agentsctl` from any terminal, link the project globally:
-
-```sh
-npm run build
-npm link
-agentsctl usage --json      # now available everywhere
-```
-
-On Windows, npm creates `agentsctl.cmd` / `agentsctl.ps1` shims in the global npm directory
-(e.g. `C:\Program Files\nodejs\`) that point back to this project's `dist/agentsctl.js`.
-Because it is a link, not a copy, code changes only need `npm run build` — no re-link.
-
-To remove the global command:
-
-```sh
-npm unlink -g agentsctl
-```
-
-If you prefer a standalone copy that does not follow the working tree, use
-`npm install -g .` instead (re-run it after each change).
-
-For development without building: `npm run dev -- usage --json`. Tests: `npm test`.
-
-## Usage options
+### Options
 
 ```
 agentsctl usage [--json] [--provider <names>] [--no-refresh] [--no-color] [--layout <mode>] [-h | --help]
@@ -263,3 +318,7 @@ Use `--no-refresh` if you want agentsctl to be strictly read-only. An expired to
 agentsctl never logs or prints tokens. It sends GET requests to the usage endpoints (Cursor's
 usage endpoint needs a POST with an empty body), plus the refresh POSTs described above when a
 token has expired. Apart from the token write-back, it never changes the tools' files.
+
+`agentsctl sessions` makes no network requests and opens the session stores read-only. For Claude
+and Copilot it reads whole transcripts to find the title and last-used time, but it only
+outputs what the list shows: title, folder, times, branch and model.
