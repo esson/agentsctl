@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { normalizeFolder, sameFolder } from "../../src/sessions/folders.js";
+import { isWithin, normalizeFolder, sameFolder } from "../../src/sessions/folders.js";
 import { formatAgo, resumeLine, truncate } from "../../src/sessions/render.js";
 
 test("formatAgo: one unit, then a date from 30 days on", () => {
@@ -55,4 +55,12 @@ test("sameFolder on POSIX: case-sensitive, trailing slash ignored", () => {
   assert.ok(sameFolder("/home/me/app/", "/home/me/app", "linux"));
   assert.ok(!sameFolder("/home/me/App", "/home/me/app", "linux"));
   assert.equal(normalizeFolder("/", "linux"), "/");
+});
+
+test("isWithin: strictly below, case-insensitive on Windows, no prefix false positives", () => {
+  assert.ok(isWithin("C:\\work\\app\\src", "c:\\WORK\\app\\", "win32"));
+  assert.ok(!isWithin("C:\\work\\app", "C:\\work\\app", "win32"), "not the same folder");
+  assert.ok(!isWithin("C:\\work\\app-two", "C:\\work\\app", "win32"), "not a sibling with the same prefix");
+  assert.ok(isWithin("C:\\work", "C:\\", "win32"), "below a root");
+  assert.ok(isWithin("/home/me/app", "/home/me", "linux"));
 });

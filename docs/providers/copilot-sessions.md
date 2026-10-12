@@ -12,6 +12,7 @@ Observed 2026-10-19 on Windows 11, GitHub Copilot CLI 1.0.98, by reading the loc
 ~/.copilot/session-state/<session id>/...              checkpoints/, files/, ... (not used)
 ~/.copilot/session-store.db                            SQLite index (not used, see below)
 ~/.copilot/data.db                                     Copilot desktop app data (table sessions only)
+<solution folder>\.vs\<solution>\copilot-chat\...       Copilot Chat in Visual Studio, see below
 ```
 
 - Resume: `copilot --resume <session id>`, run from the session's folder. `--resume` also takes
@@ -99,7 +100,52 @@ sessions both ways.
 created_at, updated_at) with 302 rows, 213 of them with an empty summary, and no client column.
 It does not cover every folder in session-state, so it is not used.
 
+## Copilot Chat in Visual Studio
+
+Observed 2026-10-19 with Visual Studio 2026 (18.x) Professional. Visual Studio's Copilot Chat does
+not use `~/.copilot`. It saves each chat as one file in the solution's `.vs` folder:
+
+```
+<solution folder>\.vs\<solution name>\copilot-chat\<8 hex>\sessions\<chat id>
+```
+
+- `<solution name>` is the solution's file name without `.sln` (`Contoso.App`), or with `.slnx`
+  (`Contoso.Tools.slnx`), or the folder's name for an opened folder.
+- `%LOCALAPPDATA%\Microsoft\VisualStudio\18.0_<instance>\VSGitHubCopilot\copilot-chat\` has the
+  same layout but was empty.
+- There is no index of chats. Solution folders come from Visual Studio's recent list,
+  `CodeContainers.Offline` in `%LOCALAPPDATA%\Microsoft\VisualStudio\<version>_<instance>\ApplicationPrivateSettings.xml`
+  (an XML-escaped JSON array; `Value.LocalProperties.FullPath` is a `.sln`, `.slnx`, project file
+  or folder). For one folder, the current folder is checked too, also when it is not in the list.
+- A solution's chats belong to its folder. Listing one folder also includes solutions below it
+  inside the same git repository (solutions often sit in `src\` below the repository root).
+- Resume: Visual Studio cannot open a chat from the command line. The resume line opens the
+  solution with its default app, `start "<solution folder>\<name>.sln"`, or for an opened folder
+  `start devenv "<folder>"`; the chat is then in Copilot Chat's history.
+
+### Chat file
+
+A version byte (`01` in all 161 files seen), then a stream of MessagePack values:
+
+| Value | Fields used | Meaning |
+|---|---|---|
+| 1st: header map | `Name` | chat name; null in 153 of 161 files. Title when set |
+| | `TimeCreated` (ISO string) | started |
+| then `[role, message]` | `role` 0 = user, 1 = assistant | the first user message makes it a chat with a prompt |
+| | `message.Content`: `[[type, part], ...]`, type 3 = text, `part.Content` | first line of the first text part of the first user message = title when there is no name |
+
+Last used is the file's modified time (later than `TimeCreated` in every file). Also present but
+not used: header `User`, `Id`, `IsThread`, `ConversationMode` (`Default`, `ExperimentalChat`),
+`Responders`; message `Model.ModelId` (`auto`, `claude-sonnet-4.6`, `gpt-5.2`, ...; often `gpt-4.1`
+on the first message only), `Context` (attached files and their contents), `Functions` and more.
+Only the header and the messages up to the first user message are decoded.
+
+Seen: 161 chat files in 10 solution folders, up to 5.5 MB each, 114 MB in total. 157 are listed with
+`--all`; the other 4 are in solution folders that are no longer in the recent list.
+
 ## Performance
 
 workspace.yaml is read for every folder; events.jsonl only for listed sessions in the
 wanted folder, in full, to find the last timestamp. 72 event logs read for `--all`: about 0.6 s.
+Visual Studio chat files are read in full but only their start is decoded: 157 files (114 MB)
+add about 0.2 s to `--all`.

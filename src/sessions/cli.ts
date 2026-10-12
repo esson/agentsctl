@@ -19,7 +19,7 @@ Usage: agentsctl sessions [options]
 
 Options:
   --all                  Sessions from every folder (default: only the current folder)
-  --provider <names>     Agents, separated by commas or spaces (${sources.map((s) => s.name).join(", ")})
+  --provider <names>     Agents, separated by commas or spaces (${[...new Set(sources.map((s) => s.name))].join(", ")})
   --limit <n>            Show at most n sessions (default: all, or ${ALL_FOLDERS_LIMIT} with --all and no --pager)
   --pager                Show the list in a pager ($AGENTSCTL_PAGER, $PAGER or less) when writing to a terminal
   --json                 Print machine-readable JSON instead of the list

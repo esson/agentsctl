@@ -21,6 +21,14 @@ export function normalizeFolder(p: string, platform: NodeJS.Platform = process.p
   return win ? s.toLowerCase() : s;
 }
 
+/** True when `child` is a folder somewhere below `parent` (not the same folder). */
+export function isWithin(child: string, parent: string, platform: NodeJS.Platform = process.platform): boolean {
+  const c = normalizeFolder(child, platform);
+  const p = normalizeFolder(parent, platform);
+  const sep = platform === "win32" ? "\\" : "/";
+  return c !== p && c.startsWith(p.endsWith(sep) ? p : p + sep);
+}
+
 /** True when both paths name exactly the same folder (no parent/child matching). */
 export function sameFolder(a: string, b: string, platform: NodeJS.Platform = process.platform): boolean {
   return normalizeFolder(a, platform) === normalizeFolder(b, platform);

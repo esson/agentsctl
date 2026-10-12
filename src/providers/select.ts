@@ -18,7 +18,7 @@ export function selectProviders<T extends { name: string }>(
       ok: false,
       error:
         `unknown provider: ${unknown.join(", ") || "(none given)"}. ` +
-        `Known providers: ${providers.map((p) => p.name).join(", ")}`,
+        `Known providers: ${[...new Set(providers.map((p) => p.name))].join(", ")}`,
     };
   }
   return { ok: true, selected: providers.filter((p) => names.includes(p.name)) };

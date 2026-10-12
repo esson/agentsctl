@@ -109,6 +109,7 @@ are no sessions), 1 = no agent could be read, 2 = usage error.
 | Codex | `~/.codex/state_<N>.sqlite`, table `threads` | archived threads, subagents, threads without a prompt |
 | Claude Code | `$CLAUDE_CONFIG_DIR/projects/<folder>/<id>.jsonl`, default `~/.claude/projects` | subagent transcripts, sessions without a reply |
 | Copilot | `~/.copilot/session-state/<id>/workspace.yaml` and `events.jsonl`; the desktop app's list in `~/.copilot/data.db` | sessions of Windows Terminal's agent, sessions without a message, sessions archived in the desktop app |
+| Copilot in Visual Studio | `<solution folder>\.vs\<solution>\copilot-chat\<hash>\sessions\<id>`, for the solutions in Visual Studio's recent list | chats without a prompt, solutions that are no longer in the recent list |
 | Cursor agent CLI | `~/.cursor/chats/<md5 of folder>/<id>/meta.json` | subagent chats, chats without a conversation |
 
 The Codex and Copilot desktop apps and Claude Code's VS Code extension keep their sessions in the
@@ -118,12 +119,18 @@ same stores as the CLIs, so they are listed too. How the client is known:
 |---|---|---|
 | Codex | `originator` column, else `source` | CLI, Desktop App; Unknown for older threads from the VS Code extension or the desktop app, which have no originator |
 | Claude Code | `entrypoint` in the transcript | CLI (also IDE plugins that run the CLI), VS Code, Desktop App; Unknown for SDK sessions |
-| Copilot | `client_name` in workspace.yaml and the desktop app's list | CLI, Desktop App |
+| Copilot | `client_name` in workspace.yaml and the desktop app's list; the chat files of Visual Studio | CLI, Desktop App, Visual Studio |
 | Cursor | only the terminal agent is read | CLI |
 
-`Visual Studio` is not reported by any of the four stores yet: Copilot in Visual Studio and
-VS Code's Copilot Chat keep their chats inside the editor, and chats in the Cursor editor are
-stored elsewhere, so none of them are listed. The title is the session's name or generated title, else its first prompt, else `(untitled)`.
+**Copilot in Visual Studio** keeps each chat in the solution's `.vs` folder, so its chats belong to
+the solution's folder. A solution often sits in a subfolder such as `src`, so its chats are also
+listed when you run `agentsctl sessions` in a folder above it, up to the root of the same git
+repository. Visual Studio cannot open a chat from the command line: the resume line opens the
+solution (`start "<solution>.sln"`), and you then pick the chat from Copilot Chat's history.
+`--provider copilot` includes these chats. VS Code's Copilot Chat keeps its chats inside VS Code,
+and chats in the Cursor editor are stored elsewhere; neither is listed.
+
+The title is the session's name or generated title, else its first prompt, else `(untitled)`.
 Details of each store are in `docs/providers/*-sessions.md`.
 
 ### Pager
@@ -332,4 +339,6 @@ token has expired. Apart from the token write-back, it never changes the tools' 
 
 `agentsctl sessions` makes no network requests and opens the session stores read-only. For Claude
 and Copilot it reads whole transcripts to find the title and last-used time, but it only
-outputs what the list shows: title, folder, times, branch and model.
+outputs what the list shows: title, folder, times, branch and model. Of a Visual Studio chat
+file it decodes only the header and the first prompt; it also reads Visual Studio's list of
+recent solutions from `ApplicationPrivateSettings.xml`.
