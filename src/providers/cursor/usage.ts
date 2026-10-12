@@ -2,6 +2,7 @@ import os from "node:os";
 import path from "node:path";
 import type { CollectOptions, Provider, ProviderResult, UsageWindow } from "../types.js";
 import { isExpired, requestTokenRefresh, withRefresh } from "../refresh.js";
+import { loadSqlite, type SqliteCtor } from "../sqlite.js";
 import { decodeJwtExp, errorMessage, fetchJson, isFiniteNumber, isRecord, ProviderError, toErrorResult, withStart } from "../util.js";
 
 // Verified contract: docs/providers/cursor-usage.md
@@ -78,16 +79,6 @@ export function parseCursorUsage(json: unknown): UsageWindow[] {
   }
   // Older/other plans without the split: one combined meter.
   return [withStart({ label: "Monthly", percentUsed: total, resetsAt, extra: spent }, startsAt)];
-}
-
-type SqliteCtor = typeof import("better-sqlite3");
-
-async function loadSqlite(): Promise<SqliteCtor> {
-  try {
-    return (await import("better-sqlite3")).default;
-  } catch (e) {
-    throw new ProviderError(`cannot load better-sqlite3: ${errorMessage(e)}`);
-  }
 }
 
 const ACCESS_KEY = "cursorAuth/accessToken";

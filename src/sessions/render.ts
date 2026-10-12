@@ -1,4 +1,5 @@
 import { bold, dim, errorColor, fg, GLYPH_GAP, paintProvider, PROVIDER_STYLES, underline } from "../theme.js";
+import { stripLongPathPrefix } from "./folders.js";
 import type { Session } from "./types.js";
 
 // Pure rendering of the session list. No agent knowledge, no I/O.
@@ -58,7 +59,7 @@ export function truncate(s: string, max: number): string {
 }
 
 /** Folder for display and `cd`: without the `\\?\` prefix some agents store. */
-const displayFolder = (cwd: string): string => cwd.replace(/^\\\\\?\\/, "");
+const displayFolder = (cwd: string): string => stripLongPathPrefix(cwd);
 
 /** The command to copy: as stored when listing one folder, prefixed with `cd` when listing all. */
 export function resumeLine(s: Session, allFolders: boolean): string {

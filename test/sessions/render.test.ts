@@ -35,12 +35,15 @@ test("resumeLine: plain for one folder, cd first for all folders (without \\\\?\
   };
   assert.equal(resumeLine(s, false), "codex resume 1");
   assert.equal(resumeLine(s, true), 'cd "C:\\work\\app"; codex resume 1');
+  const unc = { ...s, cwd: "\\\\?\\UNC\\wsl.localhost\\Ubuntu\\home" };
+  assert.equal(resumeLine(unc, true), 'cd "\\\\wsl.localhost\\Ubuntu\\home"; codex resume 1');
 });
 
 test("sameFolder on Windows: case, trailing separators, \\\\?\\ prefix, slashes", () => {
   const w = (a: string, b: string) => sameFolder(a, b, "win32");
   assert.ok(w("C:\\work\\app", "c:\\WORK\\app\\"));
   assert.ok(w("\\\\?\\C:\\work\\app", "C:\\work\\app"));
+  assert.ok(w("\\\\?\\UNC\\server\\share\\app", "\\\\server\\share\\app"));
   assert.ok(w("C:/work/app", "C:\\work\\app"));
   assert.ok(w("C:\\work\\.\\app", "C:\\work\\app"));
   assert.ok(!w("C:\\work\\app", "C:\\work\\app\\sub"), "no subfolders");
