@@ -23,7 +23,7 @@ Claude   Agentsctl subcommand CLI from usagectl   2 hours ago
 
 | Option | What it does |
 |---|---|
-| `--all` | Sessions from every folder; the resume line then starts with `cd "<folder>";`. Shows the 20 newest unless `--limit` is given. |
+| `--all` | Sessions from every folder; the resume line then starts with `cd "<folder>";`. Shows the 10 newest unless `--limit` is given. |
 | `--provider <names>` | Only these agents (same format as for `usage`). |
 | `--limit <n>` | At most `n` sessions. |
 | `--json` | `{ sessions, errors }`, each session with `provider`, `id`, `title`, `cwd`, `startedAt`, `lastUsedAt`, `resumeCommand` and, when known, `branch` and `model`. |

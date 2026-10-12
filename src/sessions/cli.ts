@@ -10,7 +10,7 @@ import type { ListOptions, SessionResult, SessionSource } from "./types.js";
 
 export const EXIT_ALL_FAILED = 1;
 /** --all lists every folder, so it is limited unless --limit says otherwise. */
-export const ALL_FOLDERS_LIMIT = 20;
+export const ALL_FOLDERS_LIMIT = 10;
 
 export function helpText(sources: SessionSource[]): string {
   return `agentsctl sessions — list saved agent sessions, newest first, with the command to resume each

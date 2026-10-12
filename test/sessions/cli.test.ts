@@ -61,14 +61,14 @@ test("default: current folder only, all agents merged, newest first", async () =
   assert.match(r.stdout, /^Codex {4}Title x-mid {3}2 hours ago$/m);
 });
 
-test("--all: no folder filter, resume lines start with cd, limited to 20 by default", async () => {
+test("--all: no folder filter, resume lines start with cd, limited to 10 by default", async () => {
   const many = Array.from({ length: 25 }, (_, i) => session(`s${i}`, i, { cwd: `C:\\p${i}` }));
   const r = await sessions(["--all"], [withSessions("claude", many)]);
   assert.deepEqual(calls[0].opts, { cwd: undefined });
   assert.match(r.stdout, /^\nSessions in all folders\n/);
   assert.match(r.stdout, /^ +cd "C:\\p0"; tool --resume s0$/m);
-  assert.equal([...r.stdout.matchAll(/--resume/g)].length, 20);
-  assert.match(r.stdout, /5 older sessions not shown \(use --limit to show more\)/);
+  assert.equal([...r.stdout.matchAll(/--resume/g)].length, 10);
+  assert.match(r.stdout, /15 older sessions not shown \(use --limit to show more\)/);
 });
 
 test("--limit: caps the list and validates its value", async () => {
