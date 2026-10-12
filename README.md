@@ -30,7 +30,7 @@ Claude   Agentsctl subcommand CLI from usagectl   2 hours ago
 | `--json` | `{ sessions, errors }`, each session with `provider`, `id`, `title`, `cwd`, `startedAt`, `lastUsedAt`, `resumeCommand` and, when known, `branch` and `model`. |
 | `--no-color` | Plain text. |
 
-Supported so far: Codex and Claude Code. An agent that is not installed is skipped; one whose store
+Supported so far: Codex, Claude Code and the GitHub Copilot CLI. An agent that is not installed is skipped; one whose store
 cannot be read shows `could not read: <reason>`. Details of each store are in
 `docs/providers/*-sessions.md`.
 

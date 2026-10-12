@@ -6,9 +6,10 @@ import { copilot } from "./copilot/usage.js";
 import { cursor } from "./cursor/usage.js";
 import { codexSessions } from "./codex/sessions.js";
 import { claudeSessions } from "./claude/sessions.js";
+import { copilotSessions } from "./copilot/sessions.js";
 
 /** All known providers, in report order. Add a new provider here. */
 export const providers: Provider[] = [codex, claude, copilot, cursor];
 
 /** Agents whose saved sessions `agentsctl sessions` can list. */
-export const sessionSources: SessionSource[] = [codexSessions, claudeSessions];
+export const sessionSources: SessionSource[] = [codexSessions, claudeSessions, copilotSessions];
