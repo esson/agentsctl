@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { mkdirSync, mkdtempSync, utimesSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { createClaudeSessions, encodeProjectDir, parseClaudeTranscript } from "../../src/providers/claude/sessions.js";
+import { claudeClient, createClaudeSessions, encodeProjectDir, parseClaudeTranscript } from "../../src/providers/claude/sessions.js";
 
 // Transcripts are built from the record shapes seen in real Claude Code 2.1.x files
 // (docs/providers/claude-sessions.md), written to temp folders. The real store is never read.
@@ -101,6 +101,18 @@ test("parse: tolerates a partial last line and a missing timestamp; ignores <syn
   const noTime = parseClaudeTranscript("s", jsonl({ ...assistant("x"), timestamp: undefined }), FALLBACK);
   assert.equal(noTime?.lastUsedAt, FALLBACK);
   assert.equal(noTime?.startedAt, null);
+});
+
+test("client from the records' entrypoint: CLI, VS Code extension, desktop app; others unknown", () => {
+  assert.equal(claudeClient("cli"), "cli");
+  assert.equal(claudeClient("claude-vscode"), "vscode");
+  assert.equal(claudeClient("claude-desktop"), "desktop");
+  assert.equal(claudeClient("sdk-ts"), undefined);
+  assert.equal(claudeClient(undefined), undefined);
+  const records = (entrypoint: string) =>
+    jsonl(user("2026-10-12T08:00:00Z", "hi", { entrypoint }), assistant("2026-10-12T08:01:00Z", "m", { entrypoint }));
+  assert.equal(parseClaudeTranscript("s", records("claude-vscode"), FALLBACK)?.client, "vscode");
+  assert.equal(parseClaudeTranscript("s", records("cli"), FALLBACK)?.client, "cli");
 });
 
 test("encodeProjectDir matches Claude Code's folder names", () => {

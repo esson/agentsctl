@@ -18,6 +18,7 @@ function session(id: string, minutesAgo: number, extra: Partial<Session> = {}): 
     startedAt: ago(minutesAgo + 30),
     lastUsedAt: ago(minutesAgo),
     resumeCommand: `tool --resume ${id}`,
+    client: "cli",
     ...extra,
   };
 }
@@ -57,8 +58,8 @@ test("default: current folder only, all agents merged, newest first", async () =
   assert.match(r.stdout, /^\nSessions in C:\\work\\app\n\n/);
   const order = [...r.stdout.matchAll(/--resume (\S+)/g)].map((m) => m[1]);
   assert.deepEqual(order, ["c-new", "x-mid", "c-old"]);
-  assert.match(r.stdout, /^Claude {3}Title c-new {3}5 minutes ago\n {9}tool --resume c-new$/m);
-  assert.match(r.stdout, /^Codex {4}Title x-mid {3}2 hours ago$/m);
+  assert.match(r.stdout, /^Claude {3}CLI {3}Title c-new {3}5 minutes ago\n {9}tool --resume c-new$/m);
+  assert.match(r.stdout, /^Codex {4}CLI {3}Title x-mid {3}2 hours ago$/m);
 });
 
 test("--all: no folder filter, resume lines start with cd, limited to 10 by default", async () => {
@@ -127,28 +128,36 @@ test("untitled sessions and long titles", async () => {
   const narrow = await sessions([], [withSessions("claude", [session("b", 2, { title: long })])], {
     isTTY: true,
     env: { NO_COLOR: "1" },
-    columns: 50,
+    columns: 56,
   });
-  // 50 columns - "Claude" - "2 minutes ago" - two gaps = 25 characters of title.
-  assert.match(narrow.stdout, /^Claude {3}x{24}… {3}2 minutes ago$/m);
+  // 56 columns - "Claude" - "CLI" - "2 minutes ago" - three gaps = 25 characters of title.
+  assert.match(narrow.stdout, /^Claude {3}CLI {3}x{24}… {3}2 minutes ago$/m);
 });
 
-test("desktop app sessions get a marker column after the time; none without them", async () => {
-  const r = await sessions([], [withSessions("codex", [session("cli", 5), session("app", 120, { desktop: true })])]);
-  assert.match(r.stdout, /^Codex {3}Title cli {3}5 minutes ago$/m);
-  assert.match(r.stdout, /^Codex {3}Title app {3}2 hours ago {5}desktop app$/m);
-  const narrow = await sessions([], [withSessions("codex", [session("app", 2, { desktop: true, title: "x".repeat(80) })])], {
-    isTTY: true,
-    env: { NO_COLOR: "1" },
-    columns: 64,
-  });
-  // 64 columns - "Codex" - "2 minutes ago" - "desktop app" - three gaps = 26 characters of title.
-  assert.match(narrow.stdout, /^Codex {3}x{25}… {3}2 minutes ago {3}desktop app$/m);
+test("client column: every session, padded to the widest label; Unknown when not known", async () => {
+  const r = await sessions(
+    [],
+    [
+      withSessions("codex", [
+        session("cli", 5),
+        session("app", 120, { client: "desktop" }),
+        session("vsc", 200, { client: "vscode" }),
+        session("old", 300, { client: undefined }),
+        session("vis", 400, { client: "visual-studio" }),
+      ]),
+    ],
+  );
+  assert.match(r.stdout, /^Codex {3}CLI {13}Title cli {3}5 minutes ago$/m);
+  assert.match(r.stdout, /^Codex {3}Desktop App {5}Title app {3}2 hours ago$/m);
+  assert.match(r.stdout, /^Codex {3}VS Code {9}Title vsc {3}3 hours ago$/m);
+  assert.match(r.stdout, /^Codex {3}Unknown {9}Title old {3}5 hours ago$/m);
+  assert.match(r.stdout, /^Codex {3}Visual Studio {3}Title vis {3}6 hours ago$/m);
+  assert.match(r.stdout, /^ {8}tool --resume cli$/m, "the resume line stays under the client column");
 });
 
 test("--json: sessions and errors, ISO dates, optional fields only when known", async () => {
   const srcs = [
-    withSessions("claude", [session("a", 1, { branch: "main", model: "m1", desktop: true }), session("b", 2, { startedAt: null })]),
+    withSessions("claude", [session("a", 1, { branch: "main", model: "m1", client: "desktop" }), session("b", 2, { startedAt: null, client: undefined })]),
     failing("codex"),
   ];
   const r = await sessions(["--json"], srcs);
@@ -161,13 +170,13 @@ test("--json: sessions and errors, ISO dates, optional fields only when known", 
     startedAt: ago(31).toISOString(),
     lastUsedAt: ago(1).toISOString(),
     resumeCommand: "tool --resume a",
+    client: "desktop",
     branch: "main",
     model: "m1",
-    desktop: true,
   });
   assert.equal(parsed.sessions[1].startedAt, null);
   assert.equal("branch" in parsed.sessions[1], false);
-  assert.equal("desktop" in parsed.sessions[1], false);
+  assert.equal(parsed.sessions[1].client, null, "unknown client is null");
   assert.deepEqual(parsed.errors, [{ provider: "Codex", error: "store unreadable" }]);
 });
 

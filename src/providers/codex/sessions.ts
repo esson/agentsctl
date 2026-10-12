@@ -1,7 +1,7 @@
 import { readdir } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-import type { ListOptions, Session, SessionResult, SessionSource } from "../../sessions/types.js";
+import type { Client, ListOptions, Session, SessionResult, SessionSource } from "../../sessions/types.js";
 import { sameFolder } from "../../sessions/folders.js";
 import { loadSqlite } from "../sqlite.js";
 import { errorMessage } from "../util.js";
@@ -16,7 +16,7 @@ const PROVIDER = "Codex";
  * not archived, with at least one prompt.
  */
 const QUERY = `
-  SELECT id, cwd, name, title, created_at_ms, updated_at_ms, git_branch, model, originator
+  SELECT id, cwd, name, title, created_at_ms, updated_at_ms, git_branch, model, source, originator
   FROM threads
   WHERE archived = 0 AND source IN ('cli', 'vscode') AND first_user_message <> ''`;
 
@@ -29,6 +29,8 @@ export interface ThreadRow {
   updated_at_ms: number | null;
   git_branch: string | null;
   model: string | null;
+  /** "cli" or "vscode" (only interactive threads are read). */
+  source?: string | null;
   /** Client that started the thread: "codex-tui", "Codex Desktop", "codex_work_desktop"; null in older rows. */
   originator: string | null;
 }
@@ -37,6 +39,20 @@ const ms = (v: number | null): Date | null => (typeof v === "number" && v > 0 ? 
 
 /** First line of the first prompt, which Codex stores as the title until the thread is named. */
 const firstLine = (s: string | null): string | null => s?.trim().split("\n")[0].trim() || null;
+
+/**
+ * The client from `originator` ("codex-tui", "Codex Desktop", "codex_work_desktop", ...), else
+ * from `source`: "cli" is the terminal; "vscode" is shared by the VS Code extension and the
+ * desktop app, so without an originator it is not known.
+ */
+export function codexClient(source: string | null | undefined, originator: string | null): Client | undefined {
+  if (originator) {
+    if (/desktop/i.test(originator)) return "desktop";
+    if (/vscode|vs_code/i.test(originator)) return "vscode";
+    if (/tui|cli|exec/i.test(originator)) return "cli";
+  }
+  return source === "cli" ? "cli" : undefined;
+}
 
 /** One `threads` row -> a session, or null when it lacks a folder or a time. */
 export function threadToSession(r: ThreadRow): Session | null {
@@ -52,7 +68,8 @@ export function threadToSession(r: ThreadRow): Session | null {
   };
   if (r.git_branch) session.branch = r.git_branch;
   if (r.model) session.model = r.model;
-  if (r.originator && /desktop/i.test(r.originator)) session.desktop = true;
+  const client = codexClient(r.source, r.originator);
+  if (client) session.client = client;
   return session;
 }
 

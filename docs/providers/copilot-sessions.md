@@ -44,9 +44,9 @@ The folder is shared by several Copilot clients. Seen `client_name` values:
 
 | Value | Client | Files | Listed |
 |---|---|---|---|
-| `github/cli` | Copilot CLI in a terminal | 70 | yes |
-| (missing) | Copilot CLI before `client_name` was written (before 2026-06) | 60 | yes |
-| `github/autopilot` | Copilot desktop app, sessions in its own worktrees | 287 | yes, marked as desktop |
+| `github/cli` | Copilot CLI in a terminal | 70 | yes, as CLI |
+| (missing) | Copilot CLI before `client_name` was written (before 2026-06), and some older desktop app sessions | 60 | yes, as CLI unless the desktop app's list says otherwise |
+| `github/autopilot` | Copilot desktop app, sessions in its own worktrees | 287 | yes, as Desktop App |
 | `wta-master`, `wta-probe` | Windows Terminal's agent; its `name` is the agent's system prompt | 23 | no |
 
 ## data.db (desktop app)
@@ -57,13 +57,13 @@ read-only and reads only `id`, `session_type` and `archived_at`:
 
 | Column | Use |
 |---|---|
-| `session_type` | `project` or `general_chat` = created in the desktop app: marked as desktop; `cli_session` = a CLI session the app shows |
+| `session_type` | `project` or `general_chat` = created in the desktop app: Desktop App; `cli_session` = a CLI session the app shows |
 | `archived_at` | set = archived in the desktop app: left out |
 
-This marks the desktop sessions from before `client_name` was written (9 seen), which
+This identifies the desktop sessions from before `client_name` was written (9 seen), which
 workspace.yaml cannot tell apart from CLI sessions. data.db holds much more (accounts,
 projects, settings, ...), none of it read. If it is missing or cannot be read, sessions are
-listed as before and only `client_name` marks desktop sessions.
+listed as before and only `client_name` decides the client.
 
 All 25 listed `github/autopilot` sessions are in the app's list. The other 262
 `github/autopilot` folders are not: 183 have no events.jsonl and 79 have no user message,
@@ -87,8 +87,7 @@ Also seen: `session.start` (`data.context` with cwd, gitRoot, repository, branch
 ## What is left out
 
 Of 451 folders seen: 11 without workspace.yaml, 23 Windows Terminal agent sessions, and
-sessions without events.jsonl (241) or without a user message (84). 92 are listed, 34 of them
-marked as desktop sessions.
+sessions without events.jsonl (241) or without a user message (84). 92 are listed: 58 as CLI and 34 as Desktop App.
 
 Not verified: `copilot --resume <id>` was not run against a desktop app session (it opens
 the interactive UI). The desktop app shows CLI sessions in the same list, so the two share

@@ -49,22 +49,24 @@ For development without building: `npm run dev -- usage --json`. Tests: `npm tes
 ## `agentsctl sessions`
 
 Reads each agent's local session store (read-only) and lists the sessions started in exactly the
-current folder (not its subfolders), merged across agents and sorted by last use. Copy the
-second line of an entry to resume that session:
+current folder (not its subfolders), merged across agents and sorted by last use. Each entry
+shows the agent, the client the session ran in (`CLI`, `VS Code`, `Visual Studio`,
+`Desktop App`, or `Unknown` when the store does not say), the title and when it was last used.
+Copy the second line of an entry to resume that session:
 
 ```
 Sessions in C:\dev\my-app
 
-Claude    Add retry to the upload client   12 minutes ago
+Claude    CLI           Add retry to the upload client   12 minutes ago
           claude --resume 3f2a9c1e-7b4d-4e8a-9f0c-2d6b1a5e8c7f
 
-Copilot   Fix Flaky Login Test             3 hours ago
+Copilot   Desktop App   Fix Flaky Login Test             3 hours ago
           copilot --resume b81d4e2a-5c3f-4a9b-8e7d-1f0a2c6b9d4e
 
-Codex     Explain the build pipeline       2 days ago
+Codex     CLI           Explain the build pipeline       2 days ago
           codex resume 01a1f2c3-4d5e-7f60-8a9b-0c1d2e3f4a5b
 
-Cursor    Refactor Settings Page           9 days ago
+Cursor    CLI           Refactor Settings Page           9 days ago
           agent --resume 6c9e2b4f-1a3d-4e5f-8b7a-9d0c1e2f3a4b
 ```
 
@@ -74,10 +76,10 @@ session's folder first (for PowerShell and POSIX shells; cmd.exe does not accept
 ```
 Sessions in all folders
 
-Claude   Add retry to the upload client   12 minutes ago
+Claude   CLI           Add retry to the upload client   12 minutes ago
          cd "C:\dev\my-app"; claude --resume 3f2a9c1e-7b4d-4e8a-9f0c-2d6b1a5e8c7f
 
-Codex    Write release notes              5 hours ago      desktop app
+Codex    Desktop App   Write release notes              5 hours ago
          cd "C:\dev\docs-site"; codex resume 01a1f2c3-4d5e-7f60-8a9b-0c1d2e3f4a5b
 
 23 older sessions not shown (use --limit to show more)
@@ -93,7 +95,7 @@ agentsctl sessions [--all] [--provider <names>] [--limit <n>] [--pager] [--json]
 | `--provider <names>` | Only these agents, same format as for `usage`: `codex`, `claude`, `copilot`, `cursor`. |
 | `--limit <n>` | At most `n` sessions in total (not per agent). |
 | `--pager` | Show the list in a pager, like `git log` (see [Pager](#pager)). |
-| `--json` | `{ sessions, errors }`. Each session has `provider`, `id`, `title` (or `null`), `cwd`, `startedAt` (or `null`), `lastUsedAt`, `resumeCommand` and, when known, `branch`, `model` and `desktop: true`; each error has `provider` and `error`. |
+| `--json` | `{ sessions, errors }`. Each session has `provider`, `id`, `title` (or `null`), `cwd`, `startedAt` (or `null`), `lastUsedAt`, `resumeCommand`, `client` (`"cli"`, `"vscode"`, `"visual-studio"`, `"desktop"` or `null`) and, when known, `branch` and `model`; each error has `provider` and `error`. |
 | `--no-color` | Plain text without colors or icons; the same rules as for `usage` apply (see [Colors and icons](#colors-and-icons)). |
 
 An agent that is not installed is skipped. One whose store cannot be read shows
@@ -109,10 +111,19 @@ are no sessions), 1 = no agent could be read, 2 = usage error.
 | Copilot | `~/.copilot/session-state/<id>/workspace.yaml` and `events.jsonl`; the desktop app's list in `~/.copilot/data.db` | sessions of Windows Terminal's agent, sessions without a message, sessions archived in the desktop app |
 | Cursor agent CLI | `~/.cursor/chats/<md5 of folder>/<id>/meta.json` | subagent chats, chats without a conversation |
 
-The Codex and Copilot desktop apps keep their sessions in the same stores as the CLIs, so they
-are listed too and marked `desktop app` after the time. Codex threads from the VS Code extension
-are listed without a marker. Chats in the Cursor editor are stored elsewhere and not listed. The
-title is the session's name or generated title, else its first prompt, else `(untitled)`.
+The Codex and Copilot desktop apps and Claude Code's VS Code extension keep their sessions in the
+same stores as the CLIs, so they are listed too. How the client is known:
+
+| Agent | Client from | Seen values |
+|---|---|---|
+| Codex | `originator` column, else `source` | CLI, Desktop App; Unknown for older threads from the VS Code extension or the desktop app, which have no originator |
+| Claude Code | `entrypoint` in the transcript | CLI (also IDE plugins that run the CLI), VS Code, Desktop App; Unknown for SDK sessions |
+| Copilot | `client_name` in workspace.yaml and the desktop app's list | CLI, Desktop App |
+| Cursor | only the terminal agent is read | CLI |
+
+`Visual Studio` is not reported by any of the four stores yet: Copilot in Visual Studio and
+VS Code's Copilot Chat keep their chats inside the editor, and chats in the Cursor editor are
+stored elsewhere, so none of them are listed. The title is the session's name or generated title, else its first prompt, else `(untitled)`.
 Details of each store are in `docs/providers/*-sessions.md`.
 
 ### Pager

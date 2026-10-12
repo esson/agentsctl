@@ -1,6 +1,6 @@
 import { bold, dim, errorColor, fg, GLYPH_GAP, paintProvider, PROVIDER_STYLES, underline } from "../theme.js";
 import { stripLongPathPrefix } from "./folders.js";
-import type { Session } from "./types.js";
+import type { Client, Session } from "./types.js";
 
 // Pure rendering of the session list. No agent knowledge, no I/O.
 // All times are rendered in the local timezone of the process.
@@ -31,7 +31,16 @@ const COLUMN_GAP = "   ";
 const TITLE_MAX = 60;
 const TITLE_MIN = 20;
 const UNTITLED = "(untitled)";
-const DESKTOP = "desktop app";
+const CLIENT_LABELS: Record<Client, string> = {
+  cli: "CLI",
+  vscode: "VS Code",
+  "visual-studio": "Visual Studio",
+  desktop: "Desktop App",
+};
+const UNKNOWN_CLIENT = "Unknown";
+
+/** The client column's text for a session. */
+export const clientLabel = (s: Session): string => (s.client ? CLIENT_LABELS[s.client] : UNKNOWN_CLIENT);
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
 const plural = (n: number, unit: string): string => `${n} ${unit}${n === 1 ? "" : "s"}`;
@@ -96,12 +105,12 @@ export function renderSessions(
   const agentWidth = Math.max(0, ...listed.map((l) => width(agentLabel(l.provider, color))));
   const agos = listed.map((l) => formatAgo(l.session.lastUsedAt, now));
   const agoWidth = Math.max(0, ...agos.map(width));
-  // Desktop app sessions get a marker column after the time; it only exists when one is listed.
-  const markerWidth = listed.some((l) => l.session.desktop) ? COLUMN_GAP.length + DESKTOP.length : 0;
+  const clients = listed.map((l) => clientLabel(l.session));
+  const clientWidth = Math.max(0, ...clients.map(width));
   const titles = listed.map((l) => l.session.title ?? UNTITLED);
   let titleWidth = Math.min(TITLE_MAX, Math.max(0, ...titles.map(width)));
   if (opts.columns !== undefined) {
-    const room = opts.columns - agentWidth - agoWidth - 2 * COLUMN_GAP.length - markerWidth;
+    const room = opts.columns - agentWidth - clientWidth - agoWidth - 3 * COLUMN_GAP.length;
     titleWidth = Math.min(titleWidth, Math.max(TITLE_MIN, room));
   }
   const indent = " ".repeat(agentWidth + COLUMN_GAP.length);
@@ -112,8 +121,11 @@ export function renderSessions(
     const title = truncate(titles[i], titleWidth);
     const titlePad = " ".repeat(titleWidth - width(title));
     const shownTitle = l.session.title === null ? paint.dim(title) : title;
-    const marker = l.session.desktop ? `${" ".repeat(agoWidth - width(agos[i]))}${COLUMN_GAP}${paint.dim(DESKTOP)}` : "";
-    lines.push(`${paint.agent(l.provider)}${agentPad}${COLUMN_GAP}${shownTitle}${titlePad}${COLUMN_GAP}${agos[i]}${marker}`);
+    const client = clients[i].padEnd(clientWidth);
+    const shownClient = l.session.client ? client : paint.dim(client);
+    lines.push(
+      `${paint.agent(l.provider)}${agentPad}${COLUMN_GAP}${shownClient}${COLUMN_GAP}${shownTitle}${titlePad}${COLUMN_GAP}${agos[i]}`,
+    );
     lines.push(`${indent}${paint.dim(resumeLine(l.session, all))}`);
   });
 
@@ -135,9 +147,9 @@ export function renderSessionsJson(listed: ListedSession[], errors: SourceError[
     startedAt: s.startedAt?.toISOString() ?? null,
     lastUsedAt: s.lastUsedAt.toISOString(),
     resumeCommand: s.resumeCommand,
+    client: s.client ?? null,
     ...(s.branch !== undefined && { branch: s.branch }),
     ...(s.model !== undefined && { model: s.model }),
-    ...(s.desktop && { desktop: true }),
   }));
   return JSON.stringify({ sessions, errors }, null, 2) + "\n";
 }

@@ -27,6 +27,7 @@ Each line is a JSON object with a `type`. Unknown types and partial last lines a
 | `user`, `assistant`, `system` | `timestamp` (ISO) | first and last timestamps = started and last used |
 | `user`, `assistant`, `system` | `cwd`, `gitBranch` | session folder; latest branch |
 | `assistant` | `message.model` | latest model (`<synthetic>` = locally generated, ignored) |
+| `user`, `assistant`, `system` | `entrypoint` | client: `cli` = CLI, `claude-vscode` = VS Code extension, `claude-desktop` = desktop app; others (`sdk-ts`, `sdk-py`, ...) = Unknown |
 | `assistant` | `isSidechain` | `true` = subagent message, not the main conversation |
 | `ai-title` | `aiTitle` | generated title; written again as it changes, the last one wins |
 | `agent-name` | `agentName` | name the user gave the session (e.g. `claude --name`); wins over `aiTitle` |
@@ -36,6 +37,10 @@ Each line is a JSON object with a `type`. Unknown types and partial last lines a
 Also present but not used: `mode`, `permission-mode`, `file-history-snapshot`, `attachment`,
 `last-prompt`, `atis-latch`, `queue-operation`, and `cost-state` (cost, duration and lines
 changed; only written in some sessions).
+
+All 25 transcripts seen have `entrypoint: "cli"`. The other values come from the VS Code
+extension's code (2.1.301), which sets `claude-vscode` for its sessions and lists
+`claude-desktop` among the known entrypoints; no such transcript was seen.
 
 ## What is left out
 

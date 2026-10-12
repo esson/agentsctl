@@ -1,6 +1,6 @@
 import { readdir, readFile, stat } from "node:fs/promises";
 import path from "node:path";
-import type { ListOptions, Session, SessionResult, SessionSource } from "../../sessions/types.js";
+import type { Client, ListOptions, Session, SessionResult, SessionSource } from "../../sessions/types.js";
 import { normalizeFolder, sameFolder } from "../../sessions/folders.js";
 import { errorMessage, isRecord } from "../util.js";
 import { claudeConfigDir } from "./paths.js";
@@ -40,6 +40,18 @@ function time(v: unknown): Date | null {
 const text = (v: unknown): string | undefined => (typeof v === "string" && v ? v : undefined);
 
 /**
+ * The client from a record's `entrypoint`: "cli" (terminal, also IDE plugins that run the CLI),
+ * "claude-vscode" (VS Code extension), "claude-desktop" (desktop app). Others, such as the SDKs
+ * ("sdk-ts", "sdk-py"), are not one of the listed clients.
+ */
+export function claudeClient(entrypoint: string | undefined): Client | undefined {
+  if (entrypoint === "cli") return "cli";
+  if (entrypoint === "claude-vscode") return "vscode";
+  if (entrypoint?.startsWith("claude-desktop")) return "desktop";
+  return undefined;
+}
+
+/**
  * One transcript -> a session, or null when it has no conversation (no assistant reply,
  * e.g. Claude Code was opened and closed). `fallbackTime` is used when no record has a timestamp.
  */
@@ -50,6 +62,7 @@ export function parseClaudeTranscript(id: string, transcript: string, fallbackTi
   let cwd: string | undefined;
   let branch: string | undefined;
   let model: string | undefined;
+  let entrypoint: string | undefined;
   let first: Date | null = null;
   let last: Date | null = null;
   let replied = false;
@@ -69,6 +82,7 @@ export function parseClaudeTranscript(id: string, transcript: string, fallbackTi
     }
     cwd ??= text(r.cwd);
     branch = text(r.gitBranch) ?? branch;
+    entrypoint = text(r.entrypoint) ?? entrypoint;
     // A name the user gave the session wins over the generated title.
     if (r.type === "agent-name") name = text(r.agentName) ?? name;
     if (r.type === "custom-title") name = text(r.customTitle) ?? name;
@@ -91,6 +105,8 @@ export function parseClaudeTranscript(id: string, transcript: string, fallbackTi
   };
   if (branch) session.branch = branch;
   if (model) session.model = model;
+  const client = claudeClient(entrypoint);
+  if (client) session.client = client;
   return session;
 }
 

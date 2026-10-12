@@ -12,7 +12,7 @@ import { errorMessage, isRecord } from "../util.js";
 
 const PROVIDER = "Copilot";
 
-/** client_name of sessions from Copilot's desktop app, listed and marked as desktop sessions. */
+/** client_name of sessions from Copilot's desktop app, listed with the Desktop App client. */
 const DESKTOP_CLIENT = "github/autopilot";
 
 /**
@@ -102,7 +102,8 @@ export function parseCopilotSession(id: string, ws: Record<string, string>, even
   };
   if (ws.branch) session.branch = ws.branch;
   if (model) session.model = model;
-  if (ws.client_name === DESKTOP_CLIENT) session.desktop = true;
+  // No client_name: written by CLI versions before 2026-06 (desktop sessions are corrected from data.db).
+  session.client = ws.client_name === DESKTOP_CLIENT ? "desktop" : "cli";
   return session;
 }
 
@@ -117,7 +118,7 @@ export interface DesktopInfo {
 const NO_DESKTOP_INFO: DesktopInfo = { desktop: new Set(), archived: new Set() };
 
 /**
- * The desktop app's `sessions` table, read-only. It only refines the list (marker, archived),
+ * The desktop app's `sessions` table, read-only. It only refines the list (client, archived),
  * so a missing or unreadable database gives no information instead of an error.
  */
 async function readDesktopInfo(file: string): Promise<DesktopInfo> {
@@ -162,7 +163,7 @@ async function readSession(dir: string, id: string, cwd: string | undefined, inf
   }
   const session = parseCopilotSession(ws.id || id, ws, events);
   // Desktop sessions from before client_name was written are known from the app's own list.
-  if (session && info.desktop.has(session.id)) session.desktop = true;
+  if (session && info.desktop.has(session.id)) session.client = "desktop";
   return session;
 }
 

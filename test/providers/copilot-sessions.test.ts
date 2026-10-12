@@ -70,6 +70,7 @@ test("parse: title, times, folder, branch, latest model and resume command", () 
     resumeCommand: "copilot --resume s1",
     branch: "main",
     model: "gpt-6-sol",
+    client: "cli",
   });
 });
 
@@ -128,7 +129,7 @@ test("list: CLI and desktop app sessions with a prompt, exact folder only; deskt
   assert.ok(r.ok);
   assert.equal(r.provider, "Copilot");
   assert.deepEqual(r.sessions.map((s) => s.id).sort(), ["cli", "desktop", "older"]);
-  assert.deepEqual(r.sessions.filter((s) => s.desktop).map((s) => s.id), ["desktop"]);
+  assert.deepEqual(Object.fromEntries(r.sessions.map((s) => [s.id, s.client])), { cli: "cli", desktop: "desktop", older: "cli" });
 });
 
 test("list: every folder when cwd is undefined", async () => {
@@ -148,7 +149,7 @@ test("list: the desktop app's list marks its older sessions and hides archived o
   const r = await createCopilotSessions({ copilotHome: home }).list({});
   assert.ok(r.ok);
   assert.deepEqual(r.sessions.map((s) => s.id).sort(), ["cli", "desktop", "older"]);
-  assert.deepEqual(r.sessions.filter((s) => s.desktop).map((s) => s.id).sort(), ["desktop", "older"]);
+  assert.deepEqual(Object.fromEntries(r.sessions.map((s) => [s.id, s.client])), { cli: "cli", desktop: "desktop", older: "desktop" });
 });
 
 test("list: an unreadable data.db only loses the extra information", async () => {

@@ -4,7 +4,7 @@ import { mkdtempSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import Database from "better-sqlite3";
-import { createCodexSessions, threadToSession, type ThreadRow } from "../../src/providers/codex/sessions.js";
+import { codexClient, createCodexSessions, threadToSession, type ThreadRow } from "../../src/providers/codex/sessions.js";
 
 // The `threads` table is built with the columns seen in a real state_5.sqlite (Codex CLI 0.162)
 // (docs/providers/codex-sessions.md), in temp folders. The real store is never read.
@@ -18,6 +18,7 @@ const row = (over: Partial<ThreadRow> = {}): ThreadRow => ({
   updated_at_ms: Date.parse("2026-10-12T09:00:00Z"),
   git_branch: "main",
   model: "gpt-6-sol",
+  source: "cli",
   originator: "codex-tui",
   ...over,
 });
@@ -32,14 +33,18 @@ test("threadToSession: name, times, folder as stored, branch, model and resume c
     resumeCommand: "codex resume t1",
     branch: "main",
     model: "gpt-6-sol",
+    client: "cli",
   });
 });
 
-test("threadToSession: desktop app threads are marked by their originator", () => {
-  assert.equal(threadToSession(row({ originator: "Codex Desktop" }))?.desktop, true);
-  assert.equal(threadToSession(row({ originator: "codex_work_desktop" }))?.desktop, true);
-  assert.equal("desktop" in (threadToSession(row({ originator: null })) ?? {}), false);
-  assert.equal("desktop" in (threadToSession(row()) ?? {}), false);
+test("codexClient: from the originator, else from the source; vscode without originator is unknown", () => {
+  assert.equal(codexClient("vscode", "codex-tui"), "cli");
+  assert.equal(codexClient("vscode", "Codex Desktop"), "desktop");
+  assert.equal(codexClient("vscode", "codex_work_desktop"), "desktop");
+  assert.equal(codexClient("vscode", "codex_vscode"), "vscode");
+  assert.equal(codexClient("cli", null), "cli");
+  assert.equal(codexClient("vscode", null), undefined);
+  assert.equal("client" in (threadToSession(row({ source: "vscode", originator: null })) ?? {}), false);
 });
 
 test("threadToSession: first prompt line until the thread is named; no folder or time -> null", () => {
@@ -85,7 +90,7 @@ test("list: interactive, unarchived sessions with a prompt, exact folder only", 
   assert.ok(r.ok);
   assert.equal(r.provider, "Codex");
   assert.deepEqual(r.sessions.map((s) => s.id).sort(), ["cli", "desktop", "vscode"]);
-  assert.deepEqual(r.sessions.filter((s) => s.desktop).map((s) => s.id), ["desktop"]);
+  assert.deepEqual(Object.fromEntries(r.sessions.map((s) => [s.id, s.client])), { cli: "cli", desktop: "desktop", vscode: undefined });
 });
 
 test("list: every folder when cwd is undefined; \\\\?\\UNC\\ folders match their \\\\host form", async () => {

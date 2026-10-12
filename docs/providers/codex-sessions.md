@@ -32,7 +32,7 @@ Observed 2026-10-19 on Windows 11, Codex CLI 0.162.1, by reading the local files
 | `archived` | `1` = archived in Codex; left out |
 | `source` | `cli`, `vscode`, or JSON for subagents (`{"subagent":{"other":"guardian"}}`, `{"subagent":{"thread_spawn":...}}`) |
 | `first_user_message` | empty = the thread never got a prompt; left out |
-| `originator` | client that started the thread: `codex-tui` (CLI), `Codex Desktop` or `codex_work_desktop` (desktop app, marked as desktop); null in rows from before 2026-09-15 |
+| `originator` | client that started the thread: `codex-tui` (CLI), `Codex Desktop` or `codex_work_desktop` (desktop app); null in rows from before 2026-09-15 |
 
 `source` says which client created the thread, not reliably which one used it last: rows with
 `source = 'vscode'` include threads from the Codex desktop app and some from the CLI
@@ -40,9 +40,11 @@ Observed 2026-10-19 on Windows 11, Codex CLI 0.162.1, by reading the local files
 `codex resume` offers. `thread_source` (`user`, `subagent`, `guardian_review`,
 `chatgpt_handoff`) agrees with `source` for subagents and is not used.
 
-A thread is marked as a desktop app session when its `originator` contains "desktop". Threads
-with no `originator` (12 seen) are not marked, even if they came from the desktop app: their
-rollout files, which also record the originator, are zstd-compressed (`.jsonl.zst`) and not read.
+The client shown comes from `originator`: "desktop" in it = Desktop App, "vscode" = VS Code
+(assumed; the VS Code extension was not installed and no such value was seen), "tui", "cli" or
+"exec" = CLI. Without an originator (12 seen), `source = 'cli'` is CLI and `source = 'vscode'`
+is Unknown, because both the VS Code extension and the desktop app use it. Their rollout files
+also record the originator but are zstd-compressed (`.jsonl.zst`) and not read.
 
 Also present but not used: `rollout_path`, `preview`, `tokens_used`, `git_sha`,
 `git_origin_url`, `reasoning_effort`, `agent_nickname`, `agent_role`, `is_pinned`, and more.

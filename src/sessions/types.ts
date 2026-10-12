@@ -1,3 +1,6 @@
+/** The app a session ran in: the agent's terminal CLI, an editor extension or its desktop app. */
+export type Client = "cli" | "vscode" | "visual-studio" | "desktop";
+
 /** One saved agent session, normalized across agents. */
 export interface Session {
   /** The id the agent's resume command takes. */
@@ -12,8 +15,8 @@ export interface Session {
   resumeCommand: string;
   branch?: string;
   model?: string;
-  /** Created in the agent's desktop app rather than its terminal CLI. */
-  desktop?: boolean;
+  /** The app the session ran in; undefined when the store does not say. */
+  client?: Client;
 }
 
 export type SessionResult =

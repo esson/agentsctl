@@ -38,6 +38,7 @@ export function chatToSession(id: string, meta: ChatMeta, cwd: string | undefine
     startedAt: ms(meta.createdAtMs),
     lastUsedAt,
     resumeCommand: `agent --resume ${id}`,
+    client: "cli",
   };
 }
 
