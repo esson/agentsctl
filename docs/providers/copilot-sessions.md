@@ -11,7 +11,7 @@ Observed 2026-10-19 on Windows 11, GitHub Copilot CLI 1.0.98, by reading the loc
 ~/.copilot/session-state/<session id>/events.jsonl     the conversation, one event per line
 ~/.copilot/session-state/<session id>/...              checkpoints/, files/, ... (not used)
 ~/.copilot/session-store.db                            SQLite index (not used, see below)
-~/.copilot/data.db                                     Copilot desktop app data (not used)
+~/.copilot/data.db                                     Copilot desktop app data (table sessions only)
 ```
 
 - Resume: `copilot --resume <session id>`, run from the session's folder. `--resume` also takes
@@ -46,8 +46,28 @@ The folder is shared by several Copilot clients. Seen `client_name` values:
 |---|---|---|---|
 | `github/cli` | Copilot CLI in a terminal | 70 | yes |
 | (missing) | Copilot CLI before `client_name` was written (before 2026-06) | 60 | yes |
-| `github/autopilot` | Copilot desktop app, sessions in its own worktrees | 287 | no |
+| `github/autopilot` | Copilot desktop app, sessions in its own worktrees | 287 | yes, marked as desktop |
 | `wta-master`, `wta-probe` | Windows Terminal's agent; its `name` is the agent's system prompt | 23 | no |
+
+## data.db (desktop app)
+
+The Copilot desktop app keeps its own session list in the `sessions` table of
+`~/.copilot/data.db` (46 rows). Its ids are session-state folder names. agentsctl opens it
+read-only and reads only `id`, `session_type` and `archived_at`:
+
+| Column | Use |
+|---|---|
+| `session_type` | `project` or `general_chat` = created in the desktop app: marked as desktop; `cli_session` = a CLI session the app shows |
+| `archived_at` | set = archived in the desktop app: left out |
+
+This marks the desktop sessions from before `client_name` was written (9 seen), which
+workspace.yaml cannot tell apart from CLI sessions. data.db holds much more (accounts,
+projects, settings, ...), none of it read. If it is missing or cannot be read, sessions are
+listed as before and only `client_name` marks desktop sessions.
+
+All 25 listed `github/autopilot` sessions are in the app's list. The other 262
+`github/autopilot` folders are not: 183 have no events.jsonl and 79 have no user message,
+so they are left out anyway.
 
 ## events.jsonl
 
@@ -66,8 +86,13 @@ Also seen: `session.start` (`data.context` with cwd, gitRoot, repository, branch
 
 ## What is left out
 
-Of 451 folders seen: 11 without workspace.yaml, the desktop app and Windows Terminal sessions
-(310), and CLI sessions without events.jsonl (58) or without a user message (5). 67 are listed.
+Of 451 folders seen: 11 without workspace.yaml, 23 Windows Terminal agent sessions, and
+sessions without events.jsonl (241) or without a user message (84). 92 are listed, 34 of them
+marked as desktop sessions.
+
+Not verified: `copilot --resume <id>` was not run against a desktop app session (it opens
+the interactive UI). The desktop app shows CLI sessions in the same list, so the two share
+sessions both ways.
 
 ## session-store.db
 
@@ -77,5 +102,5 @@ It does not cover every folder in session-state, so it is not used.
 
 ## Performance
 
-workspace.yaml is read for every folder; events.jsonl only for listed CLI sessions in the
+workspace.yaml is read for every folder; events.jsonl only for listed sessions in the
 wanted folder, in full, to find the last timestamp. 72 event logs read for `--all`: about 0.6 s.

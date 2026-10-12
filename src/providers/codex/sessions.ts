@@ -11,9 +11,12 @@ import { errorMessage } from "../util.js";
 
 const PROVIDER = "Codex";
 
-/** The sessions `codex resume` offers: interactive ones, not archived, with at least one prompt. */
+/**
+ * The sessions `codex resume` offers: interactive ones (CLI, VS Code extension and desktop app),
+ * not archived, with at least one prompt.
+ */
 const QUERY = `
-  SELECT id, cwd, name, title, created_at_ms, updated_at_ms, git_branch, model
+  SELECT id, cwd, name, title, created_at_ms, updated_at_ms, git_branch, model, originator
   FROM threads
   WHERE archived = 0 AND source IN ('cli', 'vscode') AND first_user_message <> ''`;
 
@@ -26,6 +29,8 @@ export interface ThreadRow {
   updated_at_ms: number | null;
   git_branch: string | null;
   model: string | null;
+  /** Client that started the thread: "codex-tui", "Codex Desktop", "codex_work_desktop"; null in older rows. */
+  originator: string | null;
 }
 
 const ms = (v: number | null): Date | null => (typeof v === "number" && v > 0 ? new Date(v) : null);
@@ -47,6 +52,7 @@ export function threadToSession(r: ThreadRow): Session | null {
   };
   if (r.git_branch) session.branch = r.git_branch;
   if (r.model) session.model = r.model;
+  if (r.originator && /desktop/i.test(r.originator)) session.desktop = true;
   return session;
 }
 

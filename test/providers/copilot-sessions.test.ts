@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import Database from "better-sqlite3";
 import { createCopilotSessions, parseCopilotSession, parseWorkspaceYaml } from "../../src/providers/copilot/sessions.js";
 
 // workspace.yaml and events.jsonl are built from the shapes seen in real Copilot CLI 1.0.98 files
@@ -87,10 +88,12 @@ test("parse: no user message or no folder -> not a session; partial last line to
   assert.equal(parseCopilotSession("s1", WS, partial)?.lastUsedAt.toISOString(), "2026-10-12T08:00:02.000Z");
 });
 
-// ---- list() against a temp session-state folder
+// ---- list() against a temp Copilot folder (session-state/ and, optionally, the desktop app's data.db)
 
-function sessionState(): string {
-  const root = mkdtempSync(path.join(os.tmpdir(), "agentsctl-test-"));
+function copilotHome(): string {
+  const home = mkdtempSync(path.join(os.tmpdir(), "agentsctl-test-"));
+  const root = path.join(home, "session-state");
+  mkdirSync(root);
   const add = (id: string, ws: Record<string, string>, events?: string) => {
     mkdirSync(path.join(root, id));
     const yaml = Object.entries({ ...ws, id }).map(([k, v]) => `${k}: ${v}`).join("\n");
@@ -108,23 +111,55 @@ function sessionState(): string {
   add("sub", { ...WS, cwd: "C:\\work\\app\\src" }, convo);
   mkdirSync(path.join(root, "no-yaml"));
   writeFileSync(path.join(root, "stray.txt"), "");
-  return root;
+  return home;
 }
 
-test("list: CLI sessions with a prompt, exact folder only", async () => {
-  const r = await createCopilotSessions({ sessionStateDir: sessionState() }).list({ cwd: "c:\\WORK\\app\\" });
+/** The desktop app's session list, with the columns read (data.db has many more). */
+function addDataDb(home: string, rows: [id: string, sessionType: string, archivedAt: string | null][]): void {
+  const db = new Database(path.join(home, "data.db"));
+  db.exec("CREATE TABLE sessions (id TEXT PRIMARY KEY, title TEXT, session_type TEXT, archived_at TEXT)");
+  const insert = db.prepare("INSERT INTO sessions (id, title, session_type, archived_at) VALUES (?, 't', ?, ?)");
+  for (const r of rows) insert.run(...r);
+  db.close();
+}
+
+test("list: CLI and desktop app sessions with a prompt, exact folder only; desktop ones marked", async () => {
+  const r = await createCopilotSessions({ copilotHome: copilotHome() }).list({ cwd: "c:\\WORK\\app\\" });
   assert.ok(r.ok);
   assert.equal(r.provider, "Copilot");
-  assert.deepEqual(r.sessions.map((s) => s.id).sort(), ["cli", "older"]);
+  assert.deepEqual(r.sessions.map((s) => s.id).sort(), ["cli", "desktop", "older"]);
+  assert.deepEqual(r.sessions.filter((s) => s.desktop).map((s) => s.id), ["desktop"]);
 });
 
 test("list: every folder when cwd is undefined", async () => {
-  const r = await createCopilotSessions({ sessionStateDir: sessionState() }).list({});
+  const r = await createCopilotSessions({ copilotHome: copilotHome() }).list({});
   assert.ok(r.ok);
-  assert.deepEqual(r.sessions.map((s) => s.id).sort(), ["cli", "older", "sub"]);
+  assert.deepEqual(r.sessions.map((s) => s.id).sort(), ["cli", "desktop", "older", "sub"]);
+});
+
+test("list: the desktop app's list marks its older sessions and hides archived ones", async () => {
+  const home = copilotHome();
+  // "older" has no client_name but is a desktop project; "cli" is a CLI session the app shows; "sub" is archived.
+  addDataDb(home, [
+    ["older", "project", null],
+    ["cli", "cli_session", null],
+    ["sub", "general_chat", "2026-10-13T10:00:00Z"],
+  ]);
+  const r = await createCopilotSessions({ copilotHome: home }).list({});
+  assert.ok(r.ok);
+  assert.deepEqual(r.sessions.map((s) => s.id).sort(), ["cli", "desktop", "older"]);
+  assert.deepEqual(r.sessions.filter((s) => s.desktop).map((s) => s.id).sort(), ["desktop", "older"]);
+});
+
+test("list: an unreadable data.db only loses the extra information", async () => {
+  const home = copilotHome();
+  writeFileSync(path.join(home, "data.db"), "not a database");
+  const r = await createCopilotSessions({ copilotHome: home }).list({});
+  assert.ok(r.ok);
+  assert.equal(r.sessions.length, 4);
 });
 
 test("list: no session-state folder means Copilot is not installed -> no sessions, no error", async () => {
-  const r = await createCopilotSessions({ sessionStateDir: path.join(os.tmpdir(), "agentsctl-missing-dir") }).list({});
+  const r = await createCopilotSessions({ copilotHome: path.join(os.tmpdir(), "agentsctl-missing-dir") }).list({});
   assert.deepEqual(r, { provider: "Copilot", ok: true, sessions: [] });
 });

@@ -18,6 +18,7 @@ const row = (over: Partial<ThreadRow> = {}): ThreadRow => ({
   updated_at_ms: Date.parse("2026-10-12T09:00:00Z"),
   git_branch: "main",
   model: "gpt-6-sol",
+  originator: "codex-tui",
   ...over,
 });
 
@@ -32,6 +33,13 @@ test("threadToSession: name, times, folder as stored, branch, model and resume c
     branch: "main",
     model: "gpt-6-sol",
   });
+});
+
+test("threadToSession: desktop app threads are marked by their originator", () => {
+  assert.equal(threadToSession(row({ originator: "Codex Desktop" }))?.desktop, true);
+  assert.equal(threadToSession(row({ originator: "codex_work_desktop" }))?.desktop, true);
+  assert.equal("desktop" in (threadToSession(row({ originator: null })) ?? {}), false);
+  assert.equal("desktop" in (threadToSession(row()) ?? {}), false);
 });
 
 test("threadToSession: first prompt line until the thread is named; no folder or time -> null", () => {
@@ -49,7 +57,7 @@ test("threadToSession: first prompt line until the thread is named; no folder or
 const SCHEMA = `CREATE TABLE threads (
   id TEXT PRIMARY KEY, rollout_path TEXT, created_at_ms INTEGER, updated_at_ms INTEGER,
   source TEXT, thread_source TEXT, cwd TEXT, title TEXT, name TEXT, first_user_message TEXT,
-  archived INTEGER, git_branch TEXT, model TEXT)`;
+  archived INTEGER, git_branch TEXT, model TEXT, originator TEXT)`;
 
 function codexHome(): string {
   const home = mkdtempSync(path.join(os.tmpdir(), "agentsctl-test-"));
@@ -65,6 +73,8 @@ function codexHome(): string {
   insert.run("guardian", 6, '{"subagent":{"other":"guardian"}}', "guardian_review", app, "Guardian", "hi", 0);
   insert.run("spawned", 7, '{"subagent":{"thread_spawn":{}}}', "subagent", app, "Subagent", "hi", 0);
   insert.run("sub", 8, "cli", "user", `${app}\\sub`, "Subfolder", "hi", 0);
+  db.prepare(`INSERT INTO threads (id, updated_at_ms, source, cwd, first_user_message, archived, originator)
+    VALUES ('desktop', 10, 'vscode', ?, 'hi', 0, 'Codex Desktop')`).run(app);
   insert.run("wsl", 9, "cli", "user", "\\\\?\\UNC\\wsl.localhost\\Ubuntu\\home\\me", "WSL", "hi", 0);
   db.close();
   return home;
@@ -74,14 +84,15 @@ test("list: interactive, unarchived sessions with a prompt, exact folder only", 
   const r = await createCodexSessions({ codexHome: codexHome() }).list({ cwd: "c:\\WORK\\app\\" });
   assert.ok(r.ok);
   assert.equal(r.provider, "Codex");
-  assert.deepEqual(r.sessions.map((s) => s.id).sort(), ["cli", "vscode"]);
+  assert.deepEqual(r.sessions.map((s) => s.id).sort(), ["cli", "desktop", "vscode"]);
+  assert.deepEqual(r.sessions.filter((s) => s.desktop).map((s) => s.id), ["desktop"]);
 });
 
 test("list: every folder when cwd is undefined; \\\\?\\UNC\\ folders match their \\\\host form", async () => {
   const source = createCodexSessions({ codexHome: codexHome() });
   const all = await source.list({});
   assert.ok(all.ok);
-  assert.deepEqual(all.sessions.map((s) => s.id).sort(), ["cli", "sub", "vscode", "wsl"]);
+  assert.deepEqual(all.sessions.map((s) => s.id).sort(), ["cli", "desktop", "sub", "vscode", "wsl"]);
   const wsl = await source.list({ cwd: "\\\\wsl.localhost\\Ubuntu\\home\\me" });
   assert.ok(wsl.ok);
   assert.deepEqual(wsl.sessions.map((s) => s.id), ["wsl"]);

@@ -12,6 +12,8 @@ export interface Session {
   resumeCommand: string;
   branch?: string;
   model?: string;
+  /** Created in the agent's desktop app rather than its terminal CLI. */
+  desktop?: boolean;
 }
 
 export type SessionResult =

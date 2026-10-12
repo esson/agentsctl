@@ -77,7 +77,7 @@ Sessions in all folders
 Claude   Add retry to the upload client   12 minutes ago
          cd "C:\dev\my-app"; claude --resume 3f2a9c1e-7b4d-4e8a-9f0c-2d6b1a5e8c7f
 
-Codex    Write release notes              5 hours ago
+Codex    Write release notes              5 hours ago      desktop app
          cd "C:\dev\docs-site"; codex resume 01a1f2c3-4d5e-7f60-8a9b-0c1d2e3f4a5b
 
 23 older sessions not shown (use --limit to show more)
@@ -93,7 +93,7 @@ agentsctl sessions [--all] [--provider <names>] [--limit <n>] [--pager] [--json]
 | `--provider <names>` | Only these agents, same format as for `usage`: `codex`, `claude`, `copilot`, `cursor`. |
 | `--limit <n>` | At most `n` sessions in total (not per agent). |
 | `--pager` | Show the list in a pager, like `git log` (see [Pager](#pager)). |
-| `--json` | `{ sessions, errors }`. Each session has `provider`, `id`, `title` (or `null`), `cwd`, `startedAt` (or `null`), `lastUsedAt`, `resumeCommand` and, when known, `branch` and `model`; each error has `provider` and `error`. |
+| `--json` | `{ sessions, errors }`. Each session has `provider`, `id`, `title` (or `null`), `cwd`, `startedAt` (or `null`), `lastUsedAt`, `resumeCommand` and, when known, `branch`, `model` and `desktop: true`; each error has `provider` and `error`. |
 | `--no-color` | Plain text without colors or icons; the same rules as for `usage` apply (see [Colors and icons](#colors-and-icons)). |
 
 An agent that is not installed is skipped. One whose store cannot be read shows
@@ -106,12 +106,12 @@ are no sessions), 1 = no agent could be read, 2 = usage error.
 |---|---|---|
 | Codex | `~/.codex/state_<N>.sqlite`, table `threads` | archived threads, subagents, threads without a prompt |
 | Claude Code | `$CLAUDE_CONFIG_DIR/projects/<folder>/<id>.jsonl`, default `~/.claude/projects` | subagent transcripts, sessions without a reply |
-| Copilot CLI | `~/.copilot/session-state/<id>/workspace.yaml` and `events.jsonl` | sessions of the Copilot desktop app and Windows Terminal's agent, sessions without a message |
+| Copilot | `~/.copilot/session-state/<id>/workspace.yaml` and `events.jsonl`; the desktop app's list in `~/.copilot/data.db` | sessions of Windows Terminal's agent, sessions without a message, sessions archived in the desktop app |
 | Cursor agent CLI | `~/.cursor/chats/<md5 of folder>/<id>/meta.json` | subagent chats, chats without a conversation |
 
-The stores read are those of the terminal agents. Codex keeps the threads of its desktop app and
-VS Code extension in the same table, and `codex resume` offers them, so they are listed too; the
-Copilot desktop app's sessions are not, and chats in the Cursor editor are stored elsewhere. The
+The Codex and Copilot desktop apps keep their sessions in the same stores as the CLIs, so they
+are listed too and marked `desktop app` after the time. Codex threads from the VS Code extension
+are listed without a marker. Chats in the Cursor editor are stored elsewhere and not listed. The
 title is the session's name or generated title, else its first prompt, else `(untitled)`.
 Details of each store are in `docs/providers/*-sessions.md`.
 

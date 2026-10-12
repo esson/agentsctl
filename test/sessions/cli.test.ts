@@ -133,9 +133,22 @@ test("untitled sessions and long titles", async () => {
   assert.match(narrow.stdout, /^Claude {3}x{24}… {3}2 minutes ago$/m);
 });
 
+test("desktop app sessions get a marker column after the time; none without them", async () => {
+  const r = await sessions([], [withSessions("codex", [session("cli", 5), session("app", 120, { desktop: true })])]);
+  assert.match(r.stdout, /^Codex {3}Title cli {3}5 minutes ago$/m);
+  assert.match(r.stdout, /^Codex {3}Title app {3}2 hours ago {5}desktop app$/m);
+  const narrow = await sessions([], [withSessions("codex", [session("app", 2, { desktop: true, title: "x".repeat(80) })])], {
+    isTTY: true,
+    env: { NO_COLOR: "1" },
+    columns: 64,
+  });
+  // 64 columns - "Codex" - "2 minutes ago" - "desktop app" - three gaps = 26 characters of title.
+  assert.match(narrow.stdout, /^Codex {3}x{25}… {3}2 minutes ago {3}desktop app$/m);
+});
+
 test("--json: sessions and errors, ISO dates, optional fields only when known", async () => {
   const srcs = [
-    withSessions("claude", [session("a", 1, { branch: "main", model: "m1" }), session("b", 2, { startedAt: null })]),
+    withSessions("claude", [session("a", 1, { branch: "main", model: "m1", desktop: true }), session("b", 2, { startedAt: null })]),
     failing("codex"),
   ];
   const r = await sessions(["--json"], srcs);
@@ -150,9 +163,11 @@ test("--json: sessions and errors, ISO dates, optional fields only when known", 
     resumeCommand: "tool --resume a",
     branch: "main",
     model: "m1",
+    desktop: true,
   });
   assert.equal(parsed.sessions[1].startedAt, null);
   assert.equal("branch" in parsed.sessions[1], false);
+  assert.equal("desktop" in parsed.sessions[1], false);
   assert.deepEqual(parsed.errors, [{ provider: "Codex", error: "store unreadable" }]);
 });
 

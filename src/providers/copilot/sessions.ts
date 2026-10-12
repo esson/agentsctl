@@ -3,19 +3,24 @@ import os from "node:os";
 import path from "node:path";
 import type { ListOptions, Session, SessionResult, SessionSource } from "../../sessions/types.js";
 import { sameFolder } from "../../sessions/folders.js";
+import { loadSqlite } from "../sqlite.js";
 import { errorMessage, isRecord } from "../util.js";
 
 // Sessions: one folder per session, ~/.copilot/session-state/<id>/ with workspace.yaml (folder,
-// name, times) and events.jsonl (the conversation). Fields used: docs/providers/copilot-sessions.md.
+// name, times) and events.jsonl (the conversation). The desktop app's own session list in
+// ~/.copilot/data.db marks desktop sessions. Fields used: docs/providers/copilot-sessions.md.
 
 const PROVIDER = "Copilot";
 
+/** client_name of sessions from Copilot's desktop app, listed and marked as desktop sessions. */
+const DESKTOP_CLIENT = "github/autopilot";
+
 /**
- * Clients whose sessions are listed: the terminal CLI, and no client_name (older CLI versions).
- * Copilot's desktop app ("github/autopilot") and Windows Terminal's agent ("wta-*") use the same
- * folder and are left out.
+ * Clients whose sessions are listed: the terminal CLI, no client_name (older CLI versions) and the
+ * desktop app. Windows Terminal's agent ("wta-*") uses the same folder and is left out: its
+ * sessions are named after the agent's system prompt.
  */
-const CLI_CLIENTS = new Set(["github/cli", undefined]);
+const LISTED_CLIENTS = new Set(["github/cli", undefined, DESKTOP_CLIENT]);
 
 /**
  * The top-level `key: value` pairs of workspace.yaml, as written by Copilot's YAML library:
@@ -97,10 +102,47 @@ export function parseCopilotSession(id: string, ws: Record<string, string>, even
   };
   if (ws.branch) session.branch = ws.branch;
   if (model) session.model = model;
+  if (ws.client_name === DESKTOP_CLIENT) session.desktop = true;
   return session;
 }
 
-async function readSession(dir: string, id: string, cwd: string | undefined): Promise<Session | null> {
+/** What the desktop app's session list says about a session. */
+export interface DesktopInfo {
+  /** Session ids the desktop app created (not CLI sessions it shows). */
+  desktop: Set<string>;
+  /** Session ids archived in the desktop app. */
+  archived: Set<string>;
+}
+
+const NO_DESKTOP_INFO: DesktopInfo = { desktop: new Set(), archived: new Set() };
+
+/**
+ * The desktop app's `sessions` table, read-only. It only refines the list (marker, archived),
+ * so a missing or unreadable database gives no information instead of an error.
+ */
+async function readDesktopInfo(file: string): Promise<DesktopInfo> {
+  try {
+    const Database = await loadSqlite();
+    const db = new Database(file, { readonly: true, fileMustExist: true, timeout: 2000 });
+    try {
+      const rows = db.prepare("SELECT id, session_type, archived_at FROM sessions").all() as {
+        id: string;
+        session_type: string | null;
+        archived_at: string | null;
+      }[];
+      return {
+        desktop: new Set(rows.filter((r) => r.session_type !== "cli_session").map((r) => r.id)),
+        archived: new Set(rows.filter((r) => r.archived_at).map((r) => r.id)),
+      };
+    } finally {
+      db.close();
+    }
+  } catch {
+    return NO_DESKTOP_INFO;
+  }
+}
+
+async function readSession(dir: string, id: string, cwd: string | undefined, info: DesktopInfo): Promise<Session | null> {
   let ws: Record<string, string>;
   try {
     ws = parseWorkspaceYaml(await readFile(path.join(dir, "workspace.yaml"), "utf8"));
@@ -108,7 +150,7 @@ async function readSession(dir: string, id: string, cwd: string | undefined): Pr
     if ((e as NodeJS.ErrnoException).code === "ENOENT") return null; // folder without a session
     throw e;
   }
-  if (!CLI_CLIENTS.has(ws.client_name) || !ws.cwd) return null;
+  if (!LISTED_CLIENTS.has(ws.client_name) || !ws.cwd || info.archived.has(ws.id || id)) return null;
   // Check the folder before reading the (possibly large) event log.
   if (cwd !== undefined && !sameFolder(ws.cwd, cwd)) return null;
   let events: string;
@@ -118,12 +160,15 @@ async function readSession(dir: string, id: string, cwd: string | undefined): Pr
     if ((e as NodeJS.ErrnoException).code === "ENOENT") return null; // never got a message
     throw e;
   }
-  return parseCopilotSession(ws.id || id, ws, events);
+  const session = parseCopilotSession(ws.id || id, ws, events);
+  // Desktop sessions from before client_name was written are known from the app's own list.
+  if (session && info.desktop.has(session.id)) session.desktop = true;
+  return session;
 }
 
 export interface CopilotSessionsOptions {
-  /** Defaults to ~/.copilot/session-state. */
-  sessionStateDir?: string;
+  /** Copilot's folder with session-state/ and data.db. Defaults to ~/.copilot. */
+  copilotHome?: string;
 }
 
 export function createCopilotSessions(o: CopilotSessionsOptions = {}): SessionSource {
@@ -131,7 +176,8 @@ export function createCopilotSessions(o: CopilotSessionsOptions = {}): SessionSo
     name: "copilot",
     displayName: PROVIDER,
     async list(opts: ListOptions): Promise<SessionResult> {
-      const root = o.sessionStateDir ?? path.join(os.homedir(), ".copilot", "session-state");
+      const home = o.copilotHome ?? path.join(os.homedir(), ".copilot");
+      const root = path.join(home, "session-state");
       try {
         let ids: string[];
         try {
@@ -140,7 +186,8 @@ export function createCopilotSessions(o: CopilotSessionsOptions = {}): SessionSo
           if ((e as NodeJS.ErrnoException).code === "ENOENT") return { provider: PROVIDER, ok: true, sessions: [] };
           throw e;
         }
-        const found = await Promise.all(ids.map((id) => readSession(path.join(root, id), id, opts.cwd)));
+        const info = await readDesktopInfo(path.join(home, "data.db"));
+        const found = await Promise.all(ids.map((id) => readSession(path.join(root, id), id, opts.cwd, info)));
         return { provider: PROVIDER, ok: true, sessions: found.filter((s): s is Session => s !== null) };
       } catch (e) {
         return { provider: PROVIDER, ok: false, error: errorMessage(e) };
