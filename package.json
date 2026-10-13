@@ -4,6 +4,7 @@
   "description": "Report subscription usage limits for Codex, Claude, Copilot and Cursor in one place.",
   "type": "module",
   "private": true,
+  "license": "MIT",
   "bin": {
     "agentsctl": "dist/agentsctl.js"
   },

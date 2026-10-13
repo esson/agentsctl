@@ -376,3 +376,14 @@ and Copilot it reads whole transcripts to find the title and last-used time, but
 outputs what the list shows: title, folder, times, branch and model. Of a Visual Studio chat
 file it decodes only the header and the first prompt; it also reads Visual Studio's list of
 recent solutions from `ApplicationPrivateSettings.xml`.
+
+## Disclaimer
+
+agentsctl is an unofficial tool. It is not affiliated with, endorsed by or supported by
+Anthropic, OpenAI, GitHub, Microsoft or Anysphere (Cursor). It reads the credentials and
+session files that the tools store locally and calls undocumented internal endpoints, which
+can change or stop working at any time. Use it at your own risk.
+
+## License
+
+[MIT](LICENSE)
