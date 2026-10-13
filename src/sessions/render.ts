@@ -84,7 +84,10 @@ function agentLabel(provider: string, color: boolean): string {
   return glyph ? `${glyph}${GLYPH_GAP}${provider}` : provider;
 }
 
-/** The session list, newest first as given, with one empty line of padding above and below. */
+/**
+ * The session list, given newest first and shown oldest first: the newest ends up next to the
+ * prompt, so a long list needs no scrolling back. One empty line of padding above and below.
+ */
 export function renderSessions(
   listed: ListedSession[],
   errors: SourceError[],
@@ -107,12 +110,13 @@ export function renderSessions(
     lines.push(errors.length > 0 ? "No sessions could be read." : opts.search ? "No sessions match." : "No sessions found.");
   }
 
-  const agentWidth = Math.max(0, ...listed.map((l) => width(agentLabel(l.provider, color))));
-  const agos = listed.map((l) => formatAgo(l.session.lastUsedAt, now));
+  const rows = [...listed].reverse();
+  const agentWidth = Math.max(0, ...rows.map((l) => width(agentLabel(l.provider, color))));
+  const agos = rows.map((l) => formatAgo(l.session.lastUsedAt, now));
   const agoWidth = Math.max(0, ...agos.map(width));
-  const clients = listed.map((l) => clientLabel(l.session));
+  const clients = rows.map((l) => clientLabel(l.session));
   const clientWidth = Math.max(0, ...clients.map(width));
-  const titles = listed.map((l) => l.session.title ?? UNTITLED);
+  const titles = rows.map((l) => l.session.title ?? UNTITLED);
   let titleWidth = Math.min(TITLE_MAX, Math.max(0, ...titles.map(width)));
   if (opts.columns !== undefined) {
     const room = opts.columns - agentWidth - clientWidth - agoWidth - 3 * COLUMN_GAP.length;
@@ -120,7 +124,11 @@ export function renderSessions(
   }
   const indent = " ".repeat(agentWidth + COLUMN_GAP.length);
 
-  listed.forEach((l, i) => {
+  // The older sessions left out would come first, so the note about them does too.
+  if (opts.hidden) {
+    lines.push(paint.dim(`${plural(opts.hidden, "older session")} not shown (use --limit to show more)`), "");
+  }
+  rows.forEach((l, i) => {
     if (i > 0) lines.push("");
     const agentPad = " ".repeat(agentWidth - width(agentLabel(l.provider, color)));
     const title = truncate(titles[i], titleWidth);
@@ -135,9 +143,6 @@ export function renderSessions(
     lines.push(`${indent}${paint.dim(resumeLine(l.session, all))}`);
   });
 
-  if (opts.hidden) {
-    lines.push("", paint.dim(`${plural(opts.hidden, "older session")} not shown (use --limit to show more)`));
-  }
   for (const e of errors) lines.push("", `${paint.agent(e.provider)}${COLUMN_GAP}${paint.error("could not read:")} ${e.error}`);
   lines.push("");
   return lines.join("\n") + "\n";

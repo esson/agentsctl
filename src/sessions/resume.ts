@@ -78,7 +78,7 @@ export async function runResume(argv: string[], sources: SessionSource[]): Promi
   const results = await Promise.all(sources.map((s) => listSource(s, {})));
   const all: Found[] = results
     .flatMap((r) => (r.ok ? r.sessions.map((session) => ({ provider: r.provider, session })) : []))
-    .sort((a, b) => b.session.lastUsedAt.getTime() - a.session.lastUsedAt.getTime()); // newest first when listed
+    .sort((a, b) => b.session.lastUsedAt.getTime() - a.session.lastUsedAt.getTime()); // newest first, to keep the newest
   const matches = matchSessions(all, id);
 
   if (matches.length === 0) {
@@ -87,8 +87,9 @@ export async function runResume(argv: string[], sources: SessionSource[]): Promi
     return { stdout: "", stderr: `agentsctl resume: no session with id '${id}'\n${why}`, exitCode: EXIT_NOT_FOUND };
   }
   if (matches.length > 1) {
-    const listed = matches.slice(0, MAX_LISTED).map((f) => `  ${f.session.id}   ${describe(f)}`);
-    if (matches.length > MAX_LISTED) listed.push(`  … and ${matches.length - MAX_LISTED} more`);
+    // Like the session list: the newest last, the older ones left out noted first.
+    const listed = matches.slice(0, MAX_LISTED).reverse().map((f) => `  ${f.session.id}   ${describe(f)}`);
+    if (matches.length > MAX_LISTED) listed.unshift(`  … ${matches.length - MAX_LISTED} older not shown`);
     const list = listed.join("\n");
     return usageError(`'${id}' matches ${matches.length} sessions; give more of the id:\n${list}`);
   }

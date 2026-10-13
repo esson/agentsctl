@@ -51,14 +51,14 @@ test.beforeEach(() => {
   calls = [];
 });
 
-test("default: current folder only, all agents merged, newest first", async () => {
+test("default: current folder only, all agents merged, oldest first so the newest is last", async () => {
   const r = await sessions([], sources());
   assert.equal(r.exitCode, 0);
   assert.equal(r.stderr, "");
   assert.deepEqual(calls.map((c) => c.opts), [{ cwd: HERE }, { cwd: HERE }]);
   assert.match(r.stdout, /^\nSessions in C:\\work\\app\n\n/);
   const order = [...r.stdout.matchAll(/--resume (\S+)/g)].map((m) => m[1]);
-  assert.deepEqual(order, ["c-new", "x-mid", "c-old"]);
+  assert.deepEqual(order, ["c-old", "x-mid", "c-new"]);
   assert.match(r.stdout, /^Claude {3}Title c-new {3}5 minutes ago {3}CLI\n {9}tool --resume c-new$/m);
   assert.match(r.stdout, /^Codex {4}Title x-mid {3}2 hours ago {5}CLI$/m);
 });
@@ -70,7 +70,11 @@ test("--all: no folder filter, resume lines start with cd, limited to 10 by defa
   assert.match(r.stdout, /^\nSessions in all folders\n/);
   assert.match(r.stdout, /^ +cd "C:\\p0"; tool --resume s0$/m);
   assert.equal([...r.stdout.matchAll(/--resume/g)].length, 10);
-  assert.match(r.stdout, /15 older sessions not shown \(use --limit to show more\)/);
+  // The 10 newest, oldest of them first; the note about the older ones comes before them.
+  assert.match(r.stdout, /^\nSessions in all folders\n\n15 older sessions not shown \(use --limit to show more\)\n\n\S/);
+  const order = [...r.stdout.matchAll(/--resume (\S+)/g)].map((m) => m[1]);
+  assert.deepEqual(order, ["s9", "s8", "s7", "s6", "s5", "s4", "s3", "s2", "s1", "s0"]);
+  assert.match(r.stdout, /--resume s0\n\n$/, "the newest is last");
 });
 
 test("--pager: marks the output as pageable and lifts the --all limit; off by default", async () => {
@@ -98,10 +102,10 @@ test("--search: every folder, every word somewhere in title, folder, id, agent, 
   assert.deepEqual(calls.map((c) => c.opts), [{ cwd: undefined }, { cwd: undefined }], "every folder");
   assert.match(r.stdout, /^\nSessions matching "LOGIN" in all folders\n/);
   assert.match(r.stdout, /^ +cd "C:\\work\\web"; tool --resume a1$/m);
-  assert.deepEqual(await ids(["--search", "LOGIN"]), ["a1", "a2", "a3", "x1"]);
+  assert.deepEqual(await ids(["--search", "LOGIN"]), ["x1", "a3", "a2", "a1"]);
   assert.deepEqual(await ids(["-s", "login desktop"]), ["x1"], "all words, client label");
   assert.deepEqual(await ids(["-s", "login", "desktop"]), ["x1"], "without quotes");
-  assert.deepEqual(await ids(["-s", "codex"]), ["x1", "x2"], "agent name");
+  assert.deepEqual(await ids(["-s", "codex"]), ["x2", "x1"], "agent name");
   assert.deepEqual(await ids(["-s", "a2"]), ["a2"], "id");
   assert.deepEqual(await ids(["-s", "login", "--provider", "codex"]), ["x1"]);
   const none = await sessions(["-s", "zzz"], srcs);

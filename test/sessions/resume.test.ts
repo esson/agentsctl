@@ -72,11 +72,14 @@ test("resume: an ambiguous prefix lists the matches and runs nothing", async () 
 });
 
 test("resume: a long list of matches is cut at 10, long titles are shortened", async () => {
-  const many = Array.from({ length: 12 }, (_, i) => session(`aa${String(i).padStart(2, "0")}`, "C:\\a", { title: "x".repeat(80) }));
+  const many = Array.from({ length: 12 }, (_, i) =>
+    session(`aa${String(i).padStart(2, "0")}`, "C:\\a", { title: "x".repeat(80), lastUsedAt: new Date(2026, 9, 15, 12, i) }),
+  );
   const r = await resume(["aa"], [source("Codex", { provider: "Codex", ok: true, sessions: many })]);
   assert.equal(r.exitCode, 2);
-  assert.equal([...r.stderr.matchAll(/^ {2}aa\d\d /gm)].length, 10);
-  assert.match(r.stderr, /^ {2}… and 2 more$/m);
+  const ids = [...r.stderr.matchAll(/^ {2}(aa\d\d) /gm)].map((m) => m[1]);
+  assert.deepEqual(ids, ["aa02", "aa03", "aa04", "aa05", "aa06", "aa07", "aa08", "aa09", "aa10", "aa11"], "the 10 newest, newest last");
+  assert.match(r.stderr, /:\n {2}… 2 older not shown\n {2}aa02 /);
   assert.match(r.stderr, /"x{49}…"/);
 });
 

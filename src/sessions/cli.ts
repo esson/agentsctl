@@ -14,7 +14,7 @@ export const EXIT_ALL_FAILED = 1;
 export const ALL_FOLDERS_LIMIT = 10;
 
 export function helpText(sources: SessionSource[]): string {
-  return `agentsctl sessions — list saved agent sessions, newest first, with the command to resume each
+  return `agentsctl sessions — list saved agent sessions, newest last, with the command to resume each
 
 Usage: agentsctl sessions [options]
 

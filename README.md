@@ -7,7 +7,7 @@ Cursor). It is built from subcommands; a subcommand is always required, and
 | Command | What it does |
 |---|---|
 | `agentsctl usage` | Shows how much of your subscription usage limits you have used, for all four tools in one report. |
-| `agentsctl sessions` | Lists the saved sessions for the current folder, newest first, with the command to resume each. |
+| `agentsctl sessions` | Lists the saved sessions for the current folder, newest last, with the command to resume each. |
 | `agentsctl resume <id>` | Resumes a saved session by its id: runs the agent's resume command in the session's folder. |
 
 ## Install and build
@@ -50,7 +50,8 @@ For development without building: `npm run dev -- usage --json`. Tests: `npm tes
 ## `agentsctl sessions`
 
 Reads each agent's local session store (read-only) and lists the sessions started in exactly the
-current folder (not its subfolders), merged across agents and sorted by last use. Each entry
+current folder (not its subfolders), merged across agents and sorted by last use: oldest first, so the newest is the last one,
+next to your prompt, and a long list needs no scrolling back. Each entry
 shows the agent, the title, when it was last used and the client the session ran in (`CLI`,
 `VS Code`, `Visual Studio`, `Desktop App`, or `Unknown` when the store does not say).
 Copy the second line of an entry to resume that session, or pass its id to
@@ -59,17 +60,17 @@ Copy the second line of an entry to resume that session, or pass its id to
 ```
 Sessions in C:\dev\my-app
 
-Claude    Add retry to the upload client   12 minutes ago   CLI
-          claude --resume 3f2a9c1e-7b4d-4e8a-9f0c-2d6b1a5e8c7f
-
-Copilot   Fix Flaky Login Test             3 hours ago      Desktop App
-          copilot --resume b81d4e2a-5c3f-4a9b-8e7d-1f0a2c6b9d4e
+Cursor    Refactor Settings Page           9 days ago       CLI
+          agent --resume 6c9e2b4f-1a3d-4e5f-8b7a-9d0c1e2f3a4b
 
 Codex     Explain the build pipeline       2 days ago       CLI
           codex resume 01a1f2c3-4d5e-7f60-8a9b-0c1d2e3f4a5b
 
-Cursor    Refactor Settings Page           9 days ago       CLI
-          agent --resume 6c9e2b4f-1a3d-4e5f-8b7a-9d0c1e2f3a4b
+Copilot   Fix Flaky Login Test             3 hours ago      Desktop App
+          copilot --resume b81d4e2a-5c3f-4a9b-8e7d-1f0a2c6b9d4e
+
+Claude    Add retry to the upload client   12 minutes ago   CLI
+          claude --resume 3f2a9c1e-7b4d-4e8a-9f0c-2d6b1a5e8c7f
 ```
 
 With `--all`, sessions from every folder are listed, and the resume line changes to the
@@ -78,18 +79,19 @@ session's folder first (for PowerShell and POSIX shells; cmd.exe does not accept
 ```
 Sessions in all folders
 
-Claude   Add retry to the upload client   12 minutes ago   CLI
-         cd "C:\dev\my-app"; claude --resume 3f2a9c1e-7b4d-4e8a-9f0c-2d6b1a5e8c7f
+23 older sessions not shown (use --limit to show more)
 
 Codex    Write release notes              5 hours ago      Desktop App
          cd "C:\dev\docs-site"; codex resume 01a1f2c3-4d5e-7f60-8a9b-0c1d2e3f4a5b
 
-23 older sessions not shown (use --limit to show more)
+Claude   Add retry to the upload client   12 minutes ago   CLI
+         cd "C:\dev\my-app"; claude --resume 3f2a9c1e-7b4d-4e8a-9f0c-2d6b1a5e8c7f
 ```
 
 To find a session, search for words from its title, its folder or its branch: every word has to
-match, in any of them, and quotes are optional. `agentsctl sessions -s upload retry` lists the Claude session above, and
-`-s "docs desktop"` the Codex one. Only what the list shows is searched, not the conversations.
+match, in any of them, and quotes are optional. `agentsctl sessions -s upload retry` lists the
+Claude session above, and `-s docs desktop` the Codex one. Only what the list shows is searched,
+not the conversations.
 
 ```
 agentsctl sessions [--all] [-s | --search <text>] [--provider <names>] [--limit <n>] [--pager] [--json] [--no-color] [-h | --help]
@@ -102,7 +104,7 @@ agentsctl sessions [--all] [-s | --search <text>] [--provider <names>] [--limit 
 | `--provider <names>` | Only these agents, same format as for `usage`: `codex`, `claude`, `copilot`, `cursor`. |
 | `--limit <n>` | At most `n` sessions in total (not per agent). |
 | `--pager` | Show the list in a pager, like `git log` (see [Pager](#pager)). |
-| `--json` | `{ sessions, errors }`. Each session has `provider`, `id`, `title` (or `null`), `cwd`, `startedAt` (or `null`), `lastUsedAt`, `resumeCommand`, `client` (`"cli"`, `"vscode"`, `"visual-studio"`, `"desktop"` or `null`) and, when known, `branch` and `model`; each error has `provider` and `error`. |
+| `--json` | `{ sessions, errors }`. Each session has `provider`, `id`, `title` (or `null`), `cwd`, `startedAt` (or `null`), `lastUsedAt`, `resumeCommand`, `client` (`"cli"`, `"vscode"`, `"visual-studio"`, `"desktop"` or `null`) and, when known, `branch` and `model`; each error has `provider` and `error`. Sessions are newest first here. |
 | `--no-color` | Plain text without colors or icons; the same rules as for `usage` apply (see [Colors and icons](#colors-and-icons)). |
 
 An agent that is not installed is skipped. One whose store cannot be read shows
@@ -167,7 +169,7 @@ Resuming Claude session "Add retry to the upload client" in C:\dev\my-app
 ```
 
 - The start of an id is enough when only one session matches (case-insensitive). When several
-  match, they are listed, newest first, and nothing runs.
+  match, they are listed, newest last, and nothing runs.
 - Every agent and every folder is searched, not just the current folder.
 - The agent runs in this terminal with the session's folder as its working folder. Your shell's
   own folder does not change: a program cannot change the folder of the shell that started it.
