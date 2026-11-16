@@ -2,7 +2,7 @@ import os from "node:os";
 import path from "node:path";
 import type { CollectOptions, Provider, ProviderResult, UsageWindow } from "../types.js";
 import { casUpdateJsonFile, isExpired, requestTokenRefresh, withRefresh } from "../refresh.js";
-import { decodeJwtExp, fetchJson, isFiniteNumber, isRecord, ProviderError, readJsonFile, toErrorResult, windowStart, withStart } from "../util.js";
+import { decodeJwtExp, fetchJson, isFiniteNumber, isRecord, planName, ProviderError, readJsonFile, toErrorResult, windowStart, withStart } from "../util.js";
 
 // Verified contract: docs/providers/codex-usage.md
 
@@ -46,6 +46,11 @@ export function parseCodexUsage(json: unknown): UsageWindow[] {
   return [parseWindow(rl.primary_window, "Primary limit"), parseWindow(rl.secondary_window, "Secondary limit")].filter(
     (w): w is UsageWindow => w !== null,
   );
+}
+
+/** Plan from a /wham/usage response (`plan_type`: "plus", "pro", "team", ...). */
+export function parseCodexPlan(json: unknown): string | undefined {
+  return isRecord(json) ? planName(json.plan_type) : undefined;
 }
 
 interface CodexAuth {
@@ -126,7 +131,7 @@ export function createCodexProvider(deps: CodexDeps = {}): Provider {
           file,
         );
         const exp = decodeJwtExp(auth.accessToken);
-        const windows = await withRefresh({
+        const { windows, plan } = await withRefresh({
           allowRefresh: opts?.refresh ?? true,
           accessToken: auth.accessToken,
           expired: isExpired(exp === null ? null : exp * 1000, deps.now?.() ?? Date.now()),
@@ -145,10 +150,10 @@ export function createCodexProvider(deps: CodexDeps = {}): Provider {
               { method: "GET", headers },
               { reloginHint: RELOGIN, fetchImpl: deps.fetchImpl },
             );
-            return parseCodexUsage(json);
+            return { windows: parseCodexUsage(json), plan: parseCodexPlan(json) };
           },
         });
-        return { provider: PROVIDER, ok: true, windows };
+        return { provider: PROVIDER, ok: true, windows, ...(plan ? { plan } : {}) };
       } catch (e) {
         return toErrorResult(PROVIDER, e);
       }

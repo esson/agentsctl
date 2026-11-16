@@ -508,7 +508,7 @@ test("cursor: DB locked -> no write, new token used in memory", async () => {
       });
       const r = await createCursorProvider({ dbPath: () => file, fetchImpl, now }).collect({ refresh: true });
       assert.equal(r.ok, true);
-      assert.equal(calls.length, 2);
+      assert.equal(calls.filter((c) => !c.url.includes("GetPlanInfo")).length, 2); // token + usage
     } finally {
       if (locker.inTransaction) locker.exec("ROLLBACK");
       locker.close();

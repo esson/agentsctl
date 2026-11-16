@@ -9,6 +9,7 @@ import { decodeJwtExp, errorMessage, fetchJson, isFiniteNumber, isRecord, Provid
 
 const PROVIDER = "Cursor";
 const USAGE_URL = "https://api2.cursor.sh/aiserver.v1.DashboardService/GetCurrentPeriodUsage";
+const PLAN_URL = "https://api2.cursor.sh/aiserver.v1.DashboardService/GetPlanInfo";
 const RELOGIN = "open Cursor to refresh the session";
 // Refresh contract: docs/providers/cursor-usage.md "Refresh flow"
 const TOKEN_URL = "https://api2.cursor.sh/oauth/token";
@@ -79,6 +80,13 @@ export function parseCursorUsage(json: unknown): UsageWindow[] {
   }
   // Older/other plans without the split: one combined meter.
   return [withStart({ label: "Monthly", percentUsed: total, resetsAt, extra: spent }, startsAt)];
+}
+
+/** Plan from a GetPlanInfo response (`planInfo.planName`, e.g. "Team", "Pro"). */
+export function parseCursorPlan(json: unknown): string | undefined {
+  const info = isRecord(json) && isRecord(json.planInfo) ? json.planInfo : undefined;
+  const name = info?.planName;
+  return typeof name === "string" && name.trim() !== "" ? name.trim() : undefined;
 }
 
 const ACCESS_KEY = "cursorAuth/accessToken";
@@ -199,16 +207,16 @@ export function createCursorProvider(deps: CursorDeps = {}): Provider {
         const file = (deps.dbPath ?? cursorDbPath)();
         const auth = await readCursorAuth(file);
         const exp = decodeJwtExp(auth.accessToken);
-        const windows = await withRefresh({
+        const { windows, plan } = await withRefresh({
           allowRefresh: opts?.refresh ?? true,
           accessToken: auth.accessToken,
           expired: isExpired(exp === null ? null : exp * 1000, deps.now?.() ?? Date.now()),
           expiredMessage: "token expired — open Cursor once to refresh the session",
           refresh: auth.refreshToken ? () => refreshCursor(file, auth, deps) : undefined,
-          call: async (accessToken) =>
-            parseCursorUsage(
-              await fetchJson(
-                USAGE_URL,
+          call: async (accessToken) => {
+            const post = (url: string) =>
+              fetchJson(
+                url,
                 {
                   method: "POST",
                   headers: {
@@ -219,10 +227,16 @@ export function createCursorProvider(deps: CursorDeps = {}): Provider {
                   body: "{}",
                 },
                 { reloginHint: RELOGIN, fetchImpl: deps.fetchImpl },
-              ),
-            ),
+              );
+            // The plan name is a nice-to-have: a failing GetPlanInfo never fails the report.
+            const [usage, plan] = await Promise.all([
+              post(USAGE_URL),
+              post(PLAN_URL).then(parseCursorPlan, () => undefined),
+            ]);
+            return { windows: parseCursorUsage(usage), plan };
+          },
         });
-        return { provider: PROVIDER, ok: true, windows };
+        return { provider: PROVIDER, ok: true, windows, ...(plan ? { plan } : {}) };
       } catch (e) {
         return toErrorResult(PROVIDER, e);
       }

@@ -285,3 +285,17 @@ test("renderJson: startsAt is included when known", () => {
   const [plain] = JSON.parse(renderJson([{ provider: "X", ok: true, windows: [{ label: "a", percentUsed: 1, resetsAt: null }] }]));
   assert.ok(!("startsAt" in plain.windows[0]));
 });
+
+test("renderReport: plan shown next to the provider name", () => {
+  const out = renderReport([{ provider: "Claude", ok: true, plan: "Max 5x", windows: [] }], now);
+  assert.match(out, /\nClaude - Max 5x Subscription\n/);
+  const colored = stripAnsi(renderReport([{ provider: "Claude", ok: true, plan: "Pro", windows: [] }], now, { color: true }));
+  assert.match(colored, /Claude - Pro Subscription\n/);
+});
+
+test("renderJson: plan included when known", () => {
+  const [r] = JSON.parse(renderJson([{ provider: "Codex", ok: true, plan: "Team", windows: [] }]));
+  assert.equal(r.plan, "Team");
+  const [plain] = JSON.parse(renderJson([{ provider: "Codex", ok: true, windows: [] }]));
+  assert.equal("plan" in plain, false);
+});
