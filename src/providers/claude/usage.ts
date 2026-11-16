@@ -2,7 +2,7 @@ import path from "node:path";
 import type { CollectOptions, Provider, ProviderResult, UsageWindow } from "../types.js";
 import { casUpdateJsonFile, isExpired, requestTokenRefresh, withRefresh } from "../refresh.js";
 import { claudeConfigDir } from "./paths.js";
-import { fetchJson, isFiniteNumber, isRecord, parseDate, ProviderError, readJsonFile, toErrorResult, windowStart, withStart } from "../util.js";
+import { fetchJson, isFiniteNumber, isRecord, parseDate, planName, ProviderError, readJsonFile, toErrorResult, windowStart, withStart } from "../util.js";
 
 // Verified contract: docs/providers/claude-usage.md
 
@@ -81,6 +81,18 @@ interface ClaudeAuth {
   refreshToken?: string;
   expiresAt: number | null;
   scopes: string[];
+  plan?: string;
+}
+
+/**
+ * Plan from claudeAiOauth.subscriptionType ("pro", "max", "team", ...). For Max the usage
+ * multiplier comes from rateLimitTier ("default_claude_max_5x" -> "Max 5x").
+ */
+export function claudePlan(subscriptionType: unknown, rateLimitTier: unknown): string | undefined {
+  const name = planName(subscriptionType);
+  if (!name) return undefined;
+  const multiplier = typeof rateLimitTier === "string" ? /_(\d+x)$/i.exec(rateLimitTier)?.[1] : undefined;
+  return multiplier ? `${name} ${multiplier.toLowerCase()}` : name;
 }
 
 function extractClaudeAuth(creds: unknown, file: string): ClaudeAuth {
@@ -91,7 +103,13 @@ function extractClaudeAuth(creds: unknown, file: string): ClaudeAuth {
   }
   const refreshToken = typeof oauth?.refreshToken === "string" && oauth.refreshToken ? oauth.refreshToken : undefined;
   const scopes = Array.isArray(oauth?.scopes) ? oauth.scopes.filter((x): x is string => typeof x === "string") : [];
-  return { accessToken: token, refreshToken, expiresAt: isFiniteNumber(oauth?.expiresAt) ? oauth.expiresAt : null, scopes };
+  return {
+    accessToken: token,
+    refreshToken,
+    expiresAt: isFiniteNumber(oauth?.expiresAt) ? oauth.expiresAt : null,
+    scopes,
+    plan: claudePlan(oauth?.subscriptionType, oauth?.rateLimitTier),
+  };
 }
 
 const storedRefreshToken = (json: Record<string, unknown>): unknown =>
@@ -161,7 +179,7 @@ export function createClaudeProvider(deps: ClaudeDeps = {}): Provider {
               ),
             ),
         });
-        return { provider: PROVIDER, ok: true, windows };
+        return { provider: PROVIDER, ok: true, windows, ...(auth.plan ? { plan: auth.plan } : {}) };
       } catch (e) {
         return toErrorResult(PROVIDER, e);
       }

@@ -133,3 +133,17 @@ export async function fetchJson(url: string, init: RequestInit, opts: FetchJsonO
     throw new ProviderError("unexpected response format (invalid JSON)");
   }
 }
+
+/**
+ * Display name for a raw plan id: "team" -> "Team", "claude_max" -> "Claude Max".
+ * Blank or non-string -> undefined.
+ */
+export function planName(raw: unknown): string | undefined {
+  if (typeof raw !== "string" || raw.trim() === "") return undefined;
+  return raw
+    .trim()
+    .split(/[_\s-]+/)
+    .filter(Boolean)
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
+    .join(" ");
+}

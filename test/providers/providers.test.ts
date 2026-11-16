@@ -1,10 +1,11 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { codexWindowLabel, parseCodexUsage } from "../../src/providers/codex/usage.js";
-import { parseClaudeUsage } from "../../src/providers/claude/usage.js";
-import { parseCursorUsage } from "../../src/providers/cursor/usage.js";
+import { codexWindowLabel, parseCodexPlan, parseCodexUsage } from "../../src/providers/codex/usage.js";
+import { claudePlan, parseClaudeUsage } from "../../src/providers/claude/usage.js";
+import { parseCursorPlan, parseCursorUsage } from "../../src/providers/cursor/usage.js";
 import {
+  copilotPlan,
   parseCommentedJson,
   parseCopilotUser,
   parseOrgCreditsUsed,
@@ -12,7 +13,7 @@ import {
   premiumWindow,
   teamCreditsWindow,
 } from "../../src/providers/copilot/usage.js";
-import { decodeJwtExp, ProviderError } from "../../src/providers/util.js";
+import { decodeJwtExp, planName, ProviderError } from "../../src/providers/util.js";
 
 // Masked example responses copied from docs/providers/*-usage.md.
 const load = (name: string): unknown =>
@@ -211,4 +212,42 @@ test("teamCreditsWindow: window starts one calendar month (UTC) before the reset
   const w = teamCreditsWindow(100, 1000, null, new Date("2026-11-01T00:00:00.000Z"));
   assert.deepEqual(w.startsAt, new Date("2026-10-01T00:00:00.000Z"));
   assert.equal(teamCreditsWindow(100, 1000, null, null).startsAt, undefined);
+});
+
+// ---- Subscription plan ----
+
+test("planName: title-cases raw plan ids, blank -> undefined", () => {
+  assert.equal(planName("team"), "Team");
+  assert.equal(planName("ENTERPRISE"), "Enterprise");
+  assert.equal(planName("self_serve-business"), "Self Serve Business");
+  assert.equal(planName(""), undefined);
+  assert.equal(planName(42), undefined);
+});
+
+test("claudePlan: subscriptionType, with the Max multiplier from rateLimitTier", () => {
+  assert.equal(claudePlan("max", "default_claude_max_5x"), "Max 5x");
+  assert.equal(claudePlan("max", "default_claude_max_20x"), "Max 20x");
+  assert.equal(claudePlan("pro", "default_claude_ai"), "Pro");
+  assert.equal(claudePlan("team", undefined), "Team");
+  assert.equal(claudePlan(undefined, "default_claude_max_5x"), undefined);
+});
+
+test("parseCodexPlan: plan_type from the usage response", () => {
+  assert.equal(parseCodexPlan(load("codex-usage.json")), "Team");
+  assert.equal(parseCodexPlan({ plan_type: "plus" }), "Plus");
+  assert.equal(parseCodexPlan({}), undefined);
+});
+
+test("copilotPlan: copilot_plan, with product names for individual plans", () => {
+  assert.equal(parseCopilotUser(load("copilot-usage.json")).plan, "Business");
+  assert.equal(copilotPlan("individual"), "Pro");
+  assert.equal(copilotPlan("individual_pro"), "Pro+");
+  assert.equal(copilotPlan("enterprise"), "Enterprise");
+  assert.equal(copilotPlan(null), undefined);
+});
+
+test("parseCursorPlan: planInfo.planName from GetPlanInfo", () => {
+  assert.equal(parseCursorPlan({ planInfo: { planName: "Team", includedAmountCents: 2000 } }), "Team");
+  assert.equal(parseCursorPlan({ planInfo: {} }), undefined);
+  assert.equal(parseCursorPlan(null), undefined);
 });

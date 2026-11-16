@@ -16,7 +16,7 @@ import { readFile } from "node:fs/promises";
 import { execFile } from "node:child_process";
 import type { Provider, ProviderResult, UsageWindow } from "../types.js";
 import { readGenericCredential } from "../../wincred.js";
-import { errorMessage, fetchJson, isFiniteNumber, isRecord, ProviderError, toErrorResult, withStart } from "../util.js";
+import { errorMessage, fetchJson, isFiniteNumber, isRecord, planName, ProviderError, toErrorResult, withStart } from "../util.js";
 
 const PROVIDER = "Copilot";
 const USER_URL = "https://api.github.com/copilot_internal/user";
@@ -126,6 +126,16 @@ export interface CopilotUser {
   /** Personal AI credits used this month (token-based billing). */
   creditsUsed: number | null;
   premium: Record<string, unknown>;
+  /** Display name of `copilot_plan` ("business" -> "Business"). */
+  plan?: string;
+}
+
+// copilot_plan ids whose product name differs from the id. Only "business" is verified live;
+// "individual" (Copilot Pro) and "individual_pro" (Copilot Pro+) are not.
+const COPILOT_PLANS: Record<string, string> = { individual: "Pro", individual_pro: "Pro+" };
+
+export function copilotPlan(raw: unknown): string | undefined {
+  return typeof raw === "string" && raw in COPILOT_PLANS ? COPILOT_PLANS[raw] : planName(raw);
 }
 
 /** Parser for /copilot_internal/user, verified live 2026-09-23 (Copilot Business, docs/providers/copilot-usage.md). */
@@ -144,6 +154,7 @@ export function parseCopilotUser(json: unknown): CopilotUser {
     tokenBasedBilling: json.token_based_billing === true || premium.token_based_billing === true,
     creditsUsed: isFiniteNumber(premium.credits_used) ? premium.credits_used : null,
     premium,
+    plan: copilotPlan(json.copilot_plan),
   };
 }
 
@@ -267,9 +278,10 @@ export const copilot: Provider = {
     try {
       const tokens = await readTokens();
       const user = parseCopilotUser(await getWithAnyToken(USER_URL, tokens, "run `copilot` and /login, or `gh auth login`"));
-      if (!user.tokenBasedBilling) return { provider: PROVIDER, ok: true, windows: [premiumWindow(user)] };
+      const plan = user.plan ? { plan: user.plan } : {};
+      if (!user.tokenBasedBilling) return { provider: PROVIDER, ok: true, windows: [premiumWindow(user)], ...plan };
       try {
-        return { provider: PROVIDER, ok: true, windows: [await teamWindow(user, tokens)] };
+        return { provider: PROVIDER, ok: true, windows: [await teamWindow(user, tokens)], ...plan };
       } catch (e) {
         // The team pool needs org admin/billing access; fall back to personal usage (no limit).
         const used = user.creditsUsed === null ? "usage unknown" : `${fmt(user.creditsUsed)} AIC used`;
@@ -278,6 +290,7 @@ export const copilot: Provider = {
           provider: PROVIDER,
           ok: true,
           windows: [{ label: "Monthly (You)", percentUsed: null, resetsAt: user.resetsAt, extra }],
+          ...plan,
         };
       }
     } catch (e) {

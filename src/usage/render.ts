@@ -255,6 +255,11 @@ export function renderWindowCompact(w: UsageWindow, now: Date, opts: RenderOptio
   return lines;
 }
 
+/** Muted suffix after the provider name: " - Max 5x Subscription". */
+export function planSuffix(plan: string | undefined): string {
+  return plan ? ` - ${plan} Subscription` : "";
+}
+
 /** Full human-readable report, with one empty line of padding above and below. */
 export function renderReport(results: ProviderResult[], now: Date, opts: RenderOptions = {}): string {
   const paint = opts.color ? COLOR : PLAIN;
@@ -262,7 +267,7 @@ export function renderReport(results: ProviderResult[], now: Date, opts: RenderO
   const cols = columnWidths(results, now);
   const lines: string[] = ["", `${paint.title(REPORT_TITLE)} ${paint.dim(`— ${formatTimestamp(now)}`)}`];
   for (const r of results) {
-    lines.push("", paint.provider(r.provider));
+    lines.push("", paint.provider(r.provider) + paint.dim(planSuffix(r.ok ? r.plan : undefined)));
     if (compact) lines.push(""); // stacked layout: breathing room under the tool name
     if (!r.ok) {
       lines.push(`${INDENT}${paint.error("could not read:")} ${r.error}`);
@@ -297,7 +302,7 @@ export function renderReportAuto(results: ProviderResult[], now: Date, opts: Ren
 
 export type JsonWindow = Omit<UsageWindow, "resetsAt" | "startsAt"> & { resetsAt: string | null; startsAt?: string };
 export type JsonResult =
-  | { provider: string; ok: true; windows: JsonWindow[] }
+  | { provider: string; ok: true; plan?: string; windows: JsonWindow[] }
   | { provider: string; ok: false; error: string };
 
 /** Plain JSON-serialisable data (dates as ISO strings). */
@@ -307,6 +312,7 @@ export function toJsonResults(results: ProviderResult[]): JsonResult[] {
       ? {
           provider: r.provider,
           ok: true,
+          ...(r.plan ? { plan: r.plan } : {}),
           windows: r.windows.map((w) => ({
             label: w.label,
             percentUsed: w.percentUsed,

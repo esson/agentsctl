@@ -9,7 +9,13 @@ export interface UsageWindow {
 }
 
 export type ProviderResult =
-  | { provider: string; ok: true; windows: UsageWindow[] }
+  | {
+      provider: string;
+      ok: true;
+      windows: UsageWindow[];
+      /** Subscription plan, e.g. "Max 5x", "Pro", "Business", when the provider reports one. */
+      plan?: string;
+    }
   | { provider: string; ok: false; error: string };
 
 /** Options passed to every provider run. */

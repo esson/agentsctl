@@ -184,22 +184,24 @@ It reuses the login each tool has already stored on your machine, calls the same
 the tool itself uses, and prints percent used (the bar fills up as you use more) plus when each
 limit window resets, both as time remaining and as a clock time. Windows use the same names
 across tools: `Session (5h)`, `Weekly`, `Monthly`, with a qualifier in parentheses where needed.
+The subscription plan each tool reports is shown next to its name (`Claude - Max 5x Subscription`)
+and as `plan` in `--json`.
 
 ```
 AI Usage Limits — 2026-10-09 11:19
 
-Codex
+Codex - Team Subscription
    Session (5h)     │░░░░░░░░░░░░░░░░░░░    0.0% used   resets in 5 hours                9 Oct 16:19
    Weekly           ░░│░░░░░░░░░░░░░░░░░    2.0% used   resets in 5 days and 23 hours   15 Oct 10:55
 
-Claude
+Claude - Max 5x Subscription
    Session (5h)     ████░░░░░░░░░░░░░│░░   18.0% used   resets in 30 minutes             9 Oct 11:50
    Weekly           ████░░░░░░░░░│░░░░░░   20.0% used   resets in 2 days and 7 hours    11 Oct 19:00
 
-Copilot
+Copilot - Business Subscription
    Monthly (Team)   ████░│░░░░░░░░░░░░░░   19.4% used   resets in 22 days and 14 hours   1 Nov 01:00   (3,686/19,000 AIC, you 3,575 AIC - 97%)
 
-Cursor
+Cursor - Team Subscription
    Cursor Models    ░░░░░░░░░░░░░░░░░░│░    2.1% used   resets in 2 days and 4 hours    11 Oct 15:29   ($5.91 spent in total)
    Other Models     █░░░░░░░░░░░░░░░░░│░    3.6% used   resets in 2 days and 4 hours    11 Oct 15:29
 ```
@@ -209,7 +211,7 @@ In a narrow terminal the report switches to a stacked layout (`--layout compact`
 ```
 AI Usage Limits — 2026-10-09 11:19
 
-Codex
+Codex - Team Subscription
 
    Session (5h)
    │░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░    0.0% used
@@ -219,7 +221,7 @@ Codex
    █░░░░░│░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░    2.0% used
    Resets in 5 days and 23 hours · 15 Oct 10:55
 
-Claude
+Claude - Max 5x Subscription
 
    Session (5h)
    ████████░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░│░░░░   18.0% used
