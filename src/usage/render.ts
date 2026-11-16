@@ -255,9 +255,9 @@ export function renderWindowCompact(w: UsageWindow, now: Date, opts: RenderOptio
   return lines;
 }
 
-/** Muted suffix after the provider name: " - Max 5x Subscription". */
+/** Muted suffix after the provider name: " Max 5x Subscription". */
 export function planSuffix(plan: string | undefined): string {
-  return plan ? ` - ${plan} Subscription` : "";
+  return plan ? ` ${plan} Subscription` : "";
 }
 
 /** Full human-readable report, with one empty line of padding above and below. */
